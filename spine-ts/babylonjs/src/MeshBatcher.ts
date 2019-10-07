@@ -30,56 +30,36 @@
 module spine.babylonjs {
   export class MeshBatcher extends BABYLON.Mesh {
     depth: number = 0;
-
     private static VERTEX_SIZE = 9;
     private verticesLength = 0;
     private indicesLength = 0;
-
     private maxVerticesLength = 0;
     private maxIndicesLength = 0;
-
-    // private _positions:number[]; // Mesh has this already.
-    private _nPositions: number[];
-    private _indices: number[];
-
-    // private vertices: Float32Array;
-    // private indices: Uint16Array;
-
-    private _colors: number[];
-    private _uvs: number[];
-    private _normals: number[];
+    private vdPositions: number[];
+    private vdIndices: number[];
+    private vdColors: number[];
+    private vdUvs: number[];
 
     constructor(name: string, scene: BABYLON.Scene, maxVertices: number = 10920) {
       super(name, scene);
       if (maxVertices > 10920)
         throw new Error("Can't have more than 10920 triangles per batch: " + maxVertices);
-
-      this.layerMask = 1;
       this.maxVerticesLength =
         maxVertices * MeshBatcher.VERTEX_SIZE * Float32Array.BYTES_PER_ELEMENT;
       this.maxIndicesLength = maxVertices * 3 * Uint16Array.BYTES_PER_ELEMENT;
-
-      var mat = new spine.babylonjs.SkeletonMeshMaterial('shader_' + name, scene);
-      // mat.needDepthPrePass = true;
-      this.material = mat;
-
-      this._nPositions = [];
-      this._indices = [];
-      this._colors = [];
-      this._uvs = [];
-
+      this.vdPositions = [];
+      this.vdIndices = [];
+      this.vdColors = [];
+      this.vdUvs = [];
+      this.material = new spine.babylonjs.SkeletonMeshMaterial('shader_' + name, scene);
       this.actionManager = new BABYLON.ActionManager(scene);
     }
 
-    get is(): string {
-      return 'MeshBatcher';
-    }
-
     clear() {
-      this._nPositions = [];
-      this._indices = [];
-      this._colors = [];
-      this._uvs = [];
+      this.vdPositions = [];
+      this.vdIndices = [];
+      this.vdColors = [];
+      this.vdUvs = [];
     }
 
     begin() {
@@ -88,13 +68,11 @@ module spine.babylonjs {
     }
 
     canBatch(verticesLength: number, indicesLength: number) {
-      if (this.indicesLength + indicesLength >= this.maxIndicesLength / 2) return false;
       if (this.verticesLength + verticesLength >= this.maxVerticesLength / 2) return false;
-
+      if (this.indicesLength + indicesLength >= this.maxIndicesLength / 2) return false;
       return true;
     }
 
-    // run by parts
     batch(
       vertices: ArrayLike<number>,
       verticesLength: number,
@@ -102,47 +80,37 @@ module spine.babylonjs {
       indicesLength: number,
       z: number = 0,
     ) {
-      // zoffset 0.1 to 1 for alphaIndex and set margin
-      this.alphaIndex = Math.abs(z) * 10 + this.depth * 1000;
-
       let indexStart = this.verticesLength / MeshBatcher.VERTEX_SIZE;
       let j = 0;
       for (; j < verticesLength; ) {
-        this._nPositions.push(vertices[j++]);
-        this._nPositions.push(vertices[j++]);
-        this._nPositions.push(z);
-
-        this._colors.push(vertices[j++]);
-        this._colors.push(vertices[j++]);
-        this._colors.push(vertices[j++]);
-        this._colors.push(vertices[j++]);
-
-        this._uvs.push(vertices[j++]);
-        this._uvs.push(vertices[j++]);
+        this.vdPositions.push(vertices[j++]);
+        this.vdPositions.push(vertices[j++]);
+        this.vdPositions.push(z);
+        this.vdColors.push(vertices[j++]);
+        this.vdColors.push(vertices[j++]);
+        this.vdColors.push(vertices[j++]);
+        this.vdColors.push(vertices[j++]);
+        this.vdUvs.push(vertices[j++]);
+        this.vdUvs.push(vertices[j++]);
+        this.verticesLength += MeshBatcher.VERTEX_SIZE;
       }
-      this.verticesLength += (verticesLength / 8) * 9;
-
-      for (j = 0; j < indicesLength; j++) this._indices.push(indices[j] + indexStart);
-
+      for (j = 0; j < indicesLength; j++) this.vdIndices.push(indices[j] + indexStart);
       this.indicesLength += indicesLength;
+      this.alphaIndex = Math.abs(z) * 10 + this.depth * 1000;
     }
 
     end() {
       let vertexData = new BABYLON.VertexData();
-
-      vertexData.indices = this._indices;
-      vertexData.positions = this._nPositions;
-      vertexData.colors = this._colors;
-      vertexData.uvs = this._uvs;
-
+      vertexData.positions = this.vdPositions;
+      vertexData.indices = this.vdIndices;
+      vertexData.colors = this.vdColors;
+      vertexData.uvs = this.vdUvs;
       vertexData.applyToMesh(this, true);
-
-      this._nPositions = [];
-      this._indices = [];
-      this._colors = [];
-      this._uvs = [];
-
       vertexData = null;
+      this.vdPositions = [];
+      this.vdIndices = [];
+      this.vdColors = [];
+      this.vdUvs = [];
     }
   }
 }

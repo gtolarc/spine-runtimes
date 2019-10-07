@@ -35,56 +35,47 @@ module spine.babylonjs {
         fragment: 'custom',
       };
       var options = {
+        attributes: ['position', 'uv', 'color'],
+        uniforms: ['worldViewProjection', 'map'],
         needAlphaBlending: true,
         needAlphaTesting: true,
-        attributes: ['position', 'uv'],
-        uniforms: ['worldViewProjection', 'map'],
-        // attributes: ["position", "normal", "uv"],
-        // uniforms: ["world", "worldView", "worldViewProjection", "view", "projection"]
       };
-
       super(name, scene, route, options);
       this.backFaceCulling = false;
-      // this.setFloat("time", 0);
-      // this.setColor4('color', new BABYLON.Color4(0, 0, 0, 1));
-      this.alpha = 1.0;
     }
   }
 
   export class SkeletonMesh extends BABYLON.AbstractMesh {
-    spineSkeleton: spine.Skeleton;
+    tempPos: Vector2 = new Vector2();
+    tempUv: Vector2 = new Vector2();
+    tempLight = new Color();
+    tempDark = new Color();
+    spineSkeleton: Skeleton;
     state: any;
-
     zOffset: number = -0.1;
     vertexEffect: VertexEffect;
-    public onPickDownObservable = new BABYLON.Observable<any>();
-
-    // private batcher: MeshBatcher;
-    private batches = new Array<MeshBatcher>();
-    private nextBatchIndex = 0;
-    // private clipper: SkeletonClipping = new SkeletonClipping();
-
+    onPickDownObservable = new BABYLON.Observable<any>();
     static QUAD_TRIANGLES = [0, 1, 2, 2, 3, 0];
     static VERTEX_SIZE = 2 + 2 + 4;
-
-    // private vertices = Utils.newFloatArray(1024);
-    private vertices = Utils.newFloatArray(8 * 4);
+    private batches = new Array<MeshBatcher>();
+    private nextBatchIndex = 0;
+    private clipper: SkeletonClipping = new SkeletonClipping();
+    private vertices = Utils.newFloatArray(1024);
     private tempColor = new Color();
 
     constructor(name: string, scene: BABYLON.Scene, skeletonData: SkeletonData) {
       super(name, scene);
-
-      this.spineSkeleton = new spine.Skeleton(skeletonData);
+      this.spineSkeleton = new Skeleton(skeletonData);
       let animData = new AnimationStateData(skeletonData);
       this.state = new AnimationState(animData);
       this.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
     }
 
-    public getClassName(): string {
+    getClassName(): string {
       return 'SkeletonMesh';
     }
 
-    public setDepth(d: number) {
+    setDepth(d: number) {
       this.getDescendants().forEach(function(child) {
         (<MeshBatcher>child).depth = d;
       });
@@ -93,37 +84,30 @@ module spine.babylonjs {
     update(deltaTime: number) {
       let state = this.state;
       let skeleton = this.spineSkeleton;
-
       state.update(deltaTime);
       state.apply(skeleton);
       skeleton.updateWorldTransform();
-
       this.updateGeometry();
     }
+
+    dispose() {}
 
     private clearBatches() {
       for (var i = 0; i < this.batches.length; i++) {
         this.batches[i].clear();
         this.batches[i].isVisible = false;
       }
-
       this.nextBatchIndex = 0;
     }
 
     private nextBatch() {
       if (this.batches.length == this.nextBatchIndex) {
         let batch = new MeshBatcher('batcher_' + Date.now(), this.getScene());
-        // this.addChild(batch); !위치가 반영되지 않는 문제가 있다.
         batch.parent = this;
-
-        // 최하위 노드가 이벤트를 가로채서 부모 노드 선택 이벤트가 발생되지 않는다. 수동으로 한 번 더 notify 해준다.
         let onPickDown = new BABYLON.ExecuteCodeAction(
           BABYLON.ActionManager.OnPickDownTrigger,
           evt => {
-            var pickInfo = this.getScene().pick(evt.pointerX, evt.pointerY, mesh => {
-              return true;
-            });
-
+            var pickInfo = this.getScene().pick(evt.pointerX, evt.pointerY, mesh => true);
             this.onPickDownObservable.notifyObservers({
               name: this.name,
               pickedPoint: pickInfo.pickedPoint,
@@ -141,10 +125,11 @@ module spine.babylonjs {
 
     private updateGeometry() {
       this.clearBatches();
-
-      // let blendMode: BlendMode = null;
-      // let clipper = this.clipper;
-
+      let tempPos = this.tempPos;
+      let tempUv = this.tempUv;
+      let tempLight = this.tempLight;
+      let tempDark = this.tempDark;
+      let clipper = this.clipper;
       let vertices: ArrayLike<number> = this.vertices;
       let triangles: Array<number> = null;
       let uvs: ArrayLike<number> = null;
@@ -153,10 +138,8 @@ module spine.babylonjs {
       batch.begin();
       let z = 0;
       let zOffset = this.zOffset;
-      // for (let i = drawOrder.length - 1, n = drawOrder.length; i > 0; i--) {
       for (let i = 0, n = drawOrder.length; i < n; i++) {
-        let vertexSize = SkeletonMesh.VERTEX_SIZE;
-        // let vertexSize = clipper.isClipping() ? 2 : SkeletonMesh.VERTEX_SIZE;
+        let vertexSize = clipper.isClipping() ? 2 : SkeletonMesh.VERTEX_SIZE;
         let slot = drawOrder[i];
         let attachment = slot.getAttachment();
         let attachmentColor: Color = null;
@@ -167,7 +150,6 @@ module spine.babylonjs {
           attachmentColor = region.color;
           vertices = this.vertices;
           numFloats = vertexSize * 4;
-          // vertices = region.computeWorldVertices(slot, false);
           region.computeWorldVertices(slot.bone, vertices, 0, vertexSize);
           triangles = SkeletonMesh.QUAD_TRIANGLES;
           uvs = region.uvs;
@@ -175,22 +157,19 @@ module spine.babylonjs {
         } else if (attachment instanceof MeshAttachment) {
           let mesh = <MeshAttachment>attachment;
           attachmentColor = mesh.color;
-          // vertices = mesh.computeWorldVertices(slot, false);
           vertices = this.vertices;
           numFloats = (mesh.worldVerticesLength >> 1) * vertexSize;
           if (numFloats > vertices.length) {
             vertices = this.vertices = spine.Utils.newFloatArray(numFloats);
           }
           mesh.computeWorldVertices(slot, 0, mesh.worldVerticesLength, vertices, 0, vertexSize);
-
           triangles = mesh.triangles;
           uvs = mesh.uvs;
           texture = <BabylonJsTexture>(<TextureAtlasRegion>mesh.region.renderObject).texture;
         } else if (attachment instanceof ClippingAttachment) {
-          // let clip = <ClippingAttachment>(attachment);
-          // clipper.clipStart(slot, clip);
+          let clip = <ClippingAttachment>attachment;
+          clipper.clipStart(slot, clip);
         } else continue;
-
         if (texture != null) {
           let skeleton = slot.bone.skeleton;
           let skeletonColor = skeleton.color;
@@ -203,20 +182,69 @@ module spine.babylonjs {
             skeletonColor.b * slotColor.b * attachmentColor.b,
             alpha,
           );
-
           let finalVertices: ArrayLike<number>;
           let finalVerticesLength: number;
           let finalIndices: ArrayLike<number>;
           let finalIndicesLength: number;
-
-          // if (this.clipper.isClipping()) {
-          if (false) {
-            // throw new Error('Not yet developed...');
+          if (clipper.isClipping()) {
+            clipper.clipTriangles(
+              vertices,
+              numFloats,
+              triangles,
+              triangles.length,
+              uvs,
+              color,
+              null,
+              false,
+            );
+            let clippedVertices = clipper.clippedVertices;
+            let clippedTriangles = clipper.clippedTriangles;
+            if (this.vertexEffect != null) {
+              let vertexEffect = this.vertexEffect;
+              let verts = clippedVertices;
+              for (let v = 0, n = clippedVertices.length; v < n; v += vertexSize) {
+                tempPos.x = verts[v];
+                tempPos.y = verts[v + 1];
+                tempLight.setFromColor(color);
+                tempDark.set(0, 0, 0, 0);
+                tempUv.x = verts[v + 6];
+                tempUv.y = verts[v + 7];
+                vertexEffect.transform(tempPos, tempUv, tempLight, tempDark);
+                verts[v] = tempPos.x;
+                verts[v + 1] = tempPos.y;
+                verts[v + 2] = tempLight.r;
+                verts[v + 3] = tempLight.g;
+                verts[v + 4] = tempLight.b;
+                verts[v + 5] = tempLight.a;
+                verts[v + 6] = tempUv.x;
+                verts[v + 7] = tempUv.y;
+              }
+            }
+            finalVertices = clippedVertices;
+            finalVerticesLength = clippedVertices.length;
+            finalIndices = clippedTriangles;
+            finalIndicesLength = clippedTriangles.length;
           } else {
             let verts = vertices;
-            // console.log(verts)
             if (this.vertexEffect != null) {
-              throw new Error('Not yet developed...');
+              let vertexEffect = this.vertexEffect;
+              for (let v = 0, u = 0, n = numFloats; v < n; v += vertexSize, u += 2) {
+                tempPos.x = verts[v];
+                tempPos.y = verts[v + 1];
+                tempLight.setFromColor(color);
+                tempDark.set(0, 0, 0, 0);
+                tempUv.x = uvs[u];
+                tempUv.y = uvs[u + 1];
+                vertexEffect.transform(tempPos, tempUv, tempLight, tempDark);
+                verts[v] = tempPos.x;
+                verts[v + 1] = tempPos.y;
+                verts[v + 2] = tempLight.r;
+                verts[v + 3] = tempLight.g;
+                verts[v + 4] = tempLight.b;
+                verts[v + 5] = tempLight.a;
+                verts[v + 6] = tempUv.x;
+                verts[v + 7] = tempUv.y;
+              }
             } else {
               for (let v = 2, u = 0, n = numFloats; v < n; v += vertexSize, u += 2) {
                 verts[v] = color.r;
@@ -227,23 +255,18 @@ module spine.babylonjs {
                 verts[v + 5] = uvs[u + 1];
               }
             }
-
-            // this.batcher.batch(vertices, triangles, z);
             finalVertices = vertices;
             finalVerticesLength = numFloats;
             finalIndices = triangles;
             finalIndicesLength = triangles.length;
           }
-
           if (finalVerticesLength == 0 || finalIndicesLength == 0) continue;
-
           if (!batch.canBatch(finalVerticesLength, finalIndicesLength)) {
             batch.end();
             batch = this.nextBatch();
             batch.begin();
           }
-
-          let batchMaterial = <spine.babylonjs.SkeletonMeshMaterial>batch.material;
+          let batchMaterial = <SkeletonMeshMaterial>batch.material;
           if (batchMaterial.getActiveTextures().length == 0) {
             batchMaterial.setTexture('map', texture.texture);
           }
@@ -251,42 +274,15 @@ module spine.babylonjs {
             batch.end();
             batch = this.nextBatch();
             batch.begin();
-            batchMaterial = <spine.babylonjs.SkeletonMeshMaterial>batch.material;
+            batchMaterial = <SkeletonMeshMaterial>batch.material;
             batchMaterial.setTexture('map', texture.texture);
           }
-
-          /*
-					let batchMaterial = <BABYLON.StandardMaterial>batch.material;
-					if (batchMaterial.diffuseTexture == null) {
-						batchMaterial.diffuseTexture = texture.texture;
-						// batchMaterial.ambientTexture = texture.texture;
-						// batchMaterial.specularTexture = texture.texture;
-						batchMaterial.opacityTexture = texture.texture;
-						batchMaterial.freeze();
-					}
-
-					if (batchMaterial.diffuseTexture != texture.texture) {
-						batch.end();
-						batch = this.nextBatch();
-						batch.begin();
-						batchMaterial = <BABYLON.StandardMaterial>batch.material;
-
-						batchMaterial.diffuseTexture = texture.texture;
-						// batchMaterial.ambientTexture = texture.texture;
-						// batchMaterial.specularTexture = texture.texture;
-						batchMaterial.opacityTexture = texture.texture;
-					}
-					*/
-
           batch.batch(finalVertices, finalVerticesLength, finalIndices, finalIndicesLength, z);
-          // batch.batch(finalVertices, finalIndices, z);
           z += zOffset;
         }
-
-        // clipper.clipEndWithSlot(slot);
+        clipper.clipEndWithSlot(slot);
       }
-
-      // clipper.clipEnd();
+      clipper.clipEnd();
       batch.end();
     }
   }

@@ -33,13 +33,8 @@ module spine.babylonjs {
 
     constructor(image: HTMLImageElement, scene: BABYLON.Scene) {
       super(image);
-
-      var invertY = false;
-      this.texture = new BABYLON.Texture(image.src, scene, false, invertY);
+      this.texture = new BABYLON.Texture(image.src, scene, false, false);
       this.texture.hasAlpha = true;
-
-      // this.texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-      // this.texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     }
 
     setFilters(minFilter: TextureFilter, magFilter: TextureFilter) {
