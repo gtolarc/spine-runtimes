@@ -288,6 +288,8 @@ namespace Spine.Unity {
 					if (!Application.isPlaying)
 						Update(0f);
 					#endif
+					if (freeze)
+						Update(0f);
 				}
 			}
 		}
@@ -313,7 +315,7 @@ namespace Spine.Unity {
 
 			var mesh = smartMesh.mesh;
 			meshGenerator.FillVertexData(mesh);
-			if (updateTriangles) meshGenerator.FillTrianglesSingle(mesh);
+			if (updateTriangles) meshGenerator.FillTriangles(mesh);
 			meshGenerator.FillLateVertexData(mesh);
 
 			canvasRenderer.SetMesh(mesh);

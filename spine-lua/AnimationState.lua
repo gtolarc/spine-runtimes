@@ -252,9 +252,9 @@ function AnimationState:update (delta)
 					if nextTime >= 0 then
 						_next.delay = 0
 						if current.timeScale == 0 then
-							_next.trackTime = 0
+							_next.trackTime = _next.trackTime + 0
 						else
-							_next.trackTime = (nextTime / current.timeScale + delta) * _next.timeScale
+							_next.trackTime = _next.trackTime + (nextTime / current.timeScale + delta) * _next.timeScale
 						end
 						current.trackTime = current.trackTime + currentDelta
 						self:setCurrent(i, _next, true)
@@ -894,13 +894,13 @@ function AnimationState:computeHold(entry)
 			if to == nil or timeline.type == Animation.TimelineType.attachment
 				or timeline.type == Animation.TimelineType.drawOrder
 				or timeline.type == Animation.TimelineType.event
-				or not self:hasTimeline(to, id) then
+				or not to.animation:hasTimeline(id) then
 				timelineMode[i] = FIRST
 			else
 				local next = to.mixingTo
 				skip = false
 				while next do
-					if not self:hasTimeline(id) then
+					if not next.animation:hasTimeline(id) then
 						if entry.mixDuration > 0 then
 							timelineMode[i] = HOLD_MIX
 							timelineHoldMix[i] = next
@@ -915,14 +915,6 @@ function AnimationState:computeHold(entry)
 		end
 		i = i + 1
 	end
-end
-
-function AnimationState:hasTimeline(entry, id)
-	local timelines = entry.animation.timelines
-	for i,timeline in ipairs(timelines) do
-		if timeline:getPropertyId() == id then return true end
-	end
-	return false
 end
 
 function AnimationState:getCurrent (trackIndex)

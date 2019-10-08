@@ -2,8 +2,10 @@ declare module spine {
 	class Animation {
 		name: string;
 		timelines: Array<Timeline>;
+		timelineIds: Array<boolean>;
 		duration: number;
 		constructor(name: string, timelines: Array<Timeline>, duration: number);
+		hasTimeline(id: number): boolean;
 		apply(skeleton: Skeleton, lastTime: number, time: number, loop: boolean, events: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection): void;
 		static binarySearch(values: ArrayLike<number>, target: number, step?: number): number;
 		static linearSearch(values: ArrayLike<number>, target: number, step: number): number;
@@ -16,11 +18,11 @@ declare module spine {
 		setup = 0,
 		first = 1,
 		replace = 2,
-		add = 3,
+		add = 3
 	}
 	enum MixDirection {
 		mixIn = 0,
-		mixOut = 1,
+		mixOut = 1
 	}
 	enum TimelineType {
 		rotate = 0,
@@ -37,7 +39,7 @@ declare module spine {
 		pathConstraintPosition = 11,
 		pathConstraintSpacing = 12,
 		pathConstraintMix = 13,
-		twoColor = 14,
+		twoColor = 14
 	}
 	abstract class CurveTimeline implements Timeline {
 		static LINEAR: number;
@@ -251,12 +253,12 @@ declare module spine {
 		static NOT_LAST: number;
 		data: AnimationStateData;
 		tracks: TrackEntry[];
+		timeScale: number;
 		events: Event[];
-		listeners: AnimationStateListener2[];
+		listeners: AnimationStateListener[];
 		queue: EventQueue;
 		propertyIDs: IntSet;
 		animationsChanged: boolean;
-		timeScale: number;
 		trackEntryPool: Pool<TrackEntry>;
 		constructor(data: AnimationStateData);
 		update(delta: number): void;
@@ -281,10 +283,9 @@ declare module spine {
 		_animationsChanged(): void;
 		computeHold(entry: TrackEntry): void;
 		computeNotLast(entry: TrackEntry): void;
-		hasTimeline(entry: TrackEntry, id: number): boolean;
 		getCurrent(trackIndex: number): TrackEntry;
-		addListener(listener: AnimationStateListener2): void;
-		removeListener(listener: AnimationStateListener2): void;
+		addListener(listener: AnimationStateListener): void;
+		removeListener(listener: AnimationStateListener): void;
 		clearListeners(): void;
 		clearListenerNotifications(): void;
 	}
@@ -293,7 +294,7 @@ declare module spine {
 		next: TrackEntry;
 		mixingFrom: TrackEntry;
 		mixingTo: TrackEntry;
-		listener: AnimationStateListener2;
+		listener: AnimationStateListener;
 		trackIndex: number;
 		loop: boolean;
 		holdPrevious: boolean;
@@ -345,9 +346,9 @@ declare module spine {
 		end = 2,
 		dispose = 3,
 		complete = 4,
-		event = 5,
+		event = 5
 	}
-	interface AnimationStateListener2 {
+	interface AnimationStateListener {
 		start(entry: TrackEntry): void;
 		interrupt(entry: TrackEntry): void;
 		end(entry: TrackEntry): void;
@@ -355,7 +356,7 @@ declare module spine {
 		complete(entry: TrackEntry): void;
 		event(entry: TrackEntry, event: Event): void;
 	}
-	abstract class AnimationStateAdapter2 implements AnimationStateListener2 {
+	abstract class AnimationStateAdapter implements AnimationStateListener {
 		start(entry: TrackEntry): void;
 		interrupt(entry: TrackEntry): void;
 		end(entry: TrackEntry): void;
@@ -384,8 +385,8 @@ declare module spine {
 		private toLoad;
 		private loaded;
 		constructor(textureLoader: (image: HTMLImageElement) => any, pathPrefix?: string);
-		private static downloadText(url, success, error);
-		private static downloadBinary(url, success, error);
+		private static downloadText;
+		private static downloadBinary;
 		loadBinary(path: string, success?: (path: string, binary: Uint8Array) => void, error?: (path: string, error: string) => void): void;
 		loadText(path: string, success?: (path: string, text: string) => void, error?: (path: string, error: string) => void): void;
 		loadTexture(path: string, success?: (path: string, image: HTMLImageElement) => void, error?: (path: string, error: string) => void): void;
@@ -419,7 +420,7 @@ declare module spine {
 		Normal = 0,
 		Additive = 1,
 		Multiply = 2,
-		Screen = 3,
+		Screen = 3
 	}
 }
 declare module spine {
@@ -445,10 +446,10 @@ declare module spine {
 		appliedValid: boolean;
 		a: number;
 		b: number;
-		worldX: number;
 		c: number;
 		d: number;
 		worldY: number;
+		worldX: number;
 		sorted: boolean;
 		active: boolean;
 		constructor(data: BoneData, skeleton: Skeleton, parent: Bone);
@@ -492,7 +493,7 @@ declare module spine {
 		OnlyTranslation = 1,
 		NoRotationOrReflection = 2,
 		NoScale = 3,
-		NoScaleOrReflection = 4,
+		NoScaleOrReflection = 4
 	}
 }
 declare module spine {
@@ -605,17 +606,17 @@ declare module spine {
 	}
 	enum PositionMode {
 		Fixed = 0,
-		Percent = 1,
+		Percent = 1
 	}
 	enum SpacingMode {
 		Length = 0,
 		Fixed = 1,
-		Percent = 2,
+		Percent = 2
 	}
 	enum RotateMode {
 		Tangent = 0,
 		Chain = 1,
-		ChainScale = 2,
+		ChainScale = 2
 	}
 }
 declare module spine {
@@ -626,12 +627,12 @@ declare module spine {
 		private rawAssets;
 		private errors;
 		constructor(pathPrefix?: string);
-		private queueAsset(clientId, textureLoader, path);
+		private queueAsset;
 		loadText(clientId: string, path: string): void;
 		loadJson(clientId: string, path: string): void;
 		loadTexture(clientId: string, textureLoader: (image: HTMLImageElement) => any, path: string): void;
 		get(clientId: string, path: string): any;
-		private updateClientAssets(clientAssets);
+		private updateClientAssets;
 		isLoadingComplete(clientId: string): boolean;
 		dispose(): void;
 		hasErrors(): boolean;
@@ -707,18 +708,18 @@ declare module spine {
 		static CURVE_LINEAR: number;
 		static CURVE_STEPPED: number;
 		static CURVE_BEZIER: number;
-		attachmentLoader: AttachmentLoader;
 		scale: number;
+		attachmentLoader: AttachmentLoader;
 		private linkedMeshes;
 		constructor(attachmentLoader: AttachmentLoader);
 		readSkeletonData(binary: Uint8Array): SkeletonData;
-		private readSkin(input, skeletonData, defaultSkin, nonessential);
-		private readAttachment(input, skeletonData, skin, slotIndex, attachmentName, nonessential);
-		private readVertices(input, vertexCount);
-		private readFloatArray(input, n, scale);
-		private readShortArray(input);
-		private readAnimation(input, name, skeletonData);
-		private readCurve(input, frameIndex, timeline);
+		private readSkin;
+		private readAttachment;
+		private readVertices;
+		private readFloatArray;
+		private readShortArray;
+		private readAnimation;
+		private readCurve;
 		setCurve(timeline: CurveTimeline, frameIndex: number, cx1: number, cy1: number, cx2: number, cy2: number): void;
 	}
 }
@@ -851,6 +852,7 @@ declare module spine {
 		private attachmentTime;
 		deform: number[];
 		constructor(data: SlotData, bone: Bone);
+		getSkeleton(): Skeleton;
 		getAttachment(): Attachment;
 		setAttachment(attachment: Attachment): void;
 		setAttachmentTime(time: number): void;
@@ -888,12 +890,12 @@ declare module spine {
 		MipMapNearestNearest = 9984,
 		MipMapLinearNearest = 9985,
 		MipMapNearestLinear = 9986,
-		MipMapLinearLinear = 9987,
+		MipMapLinearLinear = 9987
 	}
 	enum TextureWrap {
 		MirroredRepeat = 33648,
 		ClampToEdge = 33071,
-		Repeat = 10497,
+		Repeat = 10497
 	}
 	class TextureRegion {
 		renderObject: any;
@@ -920,7 +922,7 @@ declare module spine {
 		pages: TextureAtlasPage[];
 		regions: TextureAtlasRegion[];
 		constructor(atlasText: string, textureLoader: (path: string) => any);
-		private load(atlasText, textureLoader);
+		private load;
 		findRegion(name: string): TextureAtlasRegion;
 		dispose(): void;
 	}
@@ -996,9 +998,9 @@ declare module spine {
 		private polygonIndicesPool;
 		triangulate(verticesArray: ArrayLike<number>): Array<number>;
 		decompose(verticesArray: Array<number>, triangles: Array<number>): Array<Array<number>>;
-		private static isConcave(index, vertexCount, vertices, indices);
-		private static positiveArea(p1x, p1y, p2x, p2y, p3x, p3y);
-		private static winding(p1x, p1y, p2x, p2y, p3x, p3y);
+		private static isConcave;
+		private static positiveArea;
+		private static winding;
 	}
 }
 declare module spine {
@@ -1177,7 +1179,7 @@ declare module spine {
 		LinkedMesh = 3,
 		Path = 4,
 		Point = 5,
-		Clipping = 6,
+		Clipping = 6
 	}
 }
 declare module spine {
@@ -1372,9 +1374,9 @@ declare module spine.threejs {
 		constructor(skeletonData: SkeletonData);
 		update(deltaTime: number): void;
 		dispose(): void;
-		private clearBatches();
-		private nextBatch();
-		private updateGeometry();
+		private clearBatches;
+		private nextBatch;
+		private updateGeometry;
 	}
 }
 declare module spine.threejs {
