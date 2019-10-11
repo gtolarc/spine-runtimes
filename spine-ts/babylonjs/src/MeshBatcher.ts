@@ -55,6 +55,12 @@ module spine.babylonjs {
       this.actionManager = new BABYLON.ActionManager(scene);
     }
 
+    dispose() {
+      this.material.dispose();
+      this.actionManager.dispose();
+      super.dispose();
+    }
+
     clear() {
       this.vdPositions = [];
       this.vdIndices = [];

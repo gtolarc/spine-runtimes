@@ -90,7 +90,11 @@ module spine.babylonjs {
       this.updateGeometry();
     }
 
-    dispose() {}
+    dispose() {
+      for (var i = 0; i < this.batches.length; i++) {
+        this.batches[i].dispose();
+      }
+    }
 
     private clearBatches() {
       for (var i = 0; i < this.batches.length; i++) {
