@@ -82,6 +82,7 @@
   * Added `Attachment#copy()` to all attachment type implementations. This lets you deep copy an attachment to modify it independently from the original, i.e. when programmatically changing texture coordinates or mesh vertices.
   * Added `MeshAttachment#newLinkedMesh()`, creates a linked mesh linkted to either the original mesh, or the parent of the original mesh.
   * Added IK softness.
+  * Exposed `x` and `y` on `SkeletonData` through getters and setters.
 
 ### Cocos2d-x
 * Updated to cocos2d-x 3.17.1
@@ -102,6 +103,7 @@
 * Removed dependency on `RHI`, `RenderCore`, and `ShaderCore`.
 * Re-importing atlases and their textures now works consistently in all situations.
 * Added mix-and-match example to demonstrate the new Skin API.
+* Materials on `SkeletonRendererComponent` are now blueprint read and writeable. This allows setting dynamic material instances at runtime
 
 ## C# ##
 * **Breaking changes**
@@ -184,6 +186,7 @@
 		by e.g. the LWRP renderer, leading to incorrect draw order (e.g. "A1 B A2" changed to "A1A2 B").
 		You can leave this parameter disabled when everything is drawn correctly to save the additional performance cost.
   * **Additional Timeline features.** SpineAnimationStateClip now provides a `Speed Multiplier`, a start time offset parameter `Clip In`, support for blending successive animations by overlapping tracks. An additional `Use Blend Duration` parameter *(defaults to true)* allows for automatic synchronisation of MixDuration with the current overlap blend duration. An additional Spine preferences parameter `Use Blend Duration` has been added which can be disabled to default to the previous behaviour before this update.
+  * Additional `SpriteMask and RectMask2D` example scene added for demonstration of mask setup and interaction.
 
 * **Changes of default values**
   * `SkeletonMecanim`'s `Layer Mix Mode` now defaults to `MixMode.MixNext` instead of `MixMode.MixAlways`.
