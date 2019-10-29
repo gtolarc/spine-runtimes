@@ -13,7 +13,8 @@
 		"canvas/src/**/*",
 		"webgl/src/**/*",
 		"threejs/src/**/*",
-		"player/src/**/*"
+		"player/src/**/*",
+		"babylonjs/src/**/*"
 	],
 	"exclude": [
 		"build"
