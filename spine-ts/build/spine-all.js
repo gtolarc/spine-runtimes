@@ -2161,11 +2161,14 @@ var spine;
 			this.errors = {};
 			this.toLoad = 0;
 			this.loaded = 0;
+			this.rawDataUris = {};
 			this.textureLoader = textureLoader;
 			this.pathPrefix = pathPrefix;
 		}
-		AssetManager.downloadText = function (url, success, error) {
+		AssetManager.prototype.downloadText = function (url, success, error) {
 			var request = new XMLHttpRequest();
+			if (this.rawDataUris[url])
+				url = this.rawDataUris[url];
 			request.open("GET", url, true);
 			request.onload = function () {
 				if (request.status == 200) {
@@ -2180,8 +2183,10 @@ var spine;
 			};
 			request.send();
 		};
-		AssetManager.downloadBinary = function (url, success, error) {
+		AssetManager.prototype.downloadBinary = function (url, success, error) {
 			var request = new XMLHttpRequest();
+			if (this.rawDataUris[url])
+				url = this.rawDataUris[url];
 			request.open("GET", url, true);
 			request.responseType = "arraybuffer";
 			request.onload = function () {
@@ -2197,13 +2202,16 @@ var spine;
 			};
 			request.send();
 		};
+		AssetManager.prototype.setRawDataURI = function (path, data) {
+			this.rawDataUris[this.pathPrefix + path] = data;
+		};
 		AssetManager.prototype.loadBinary = function (path, success, error) {
 			var _this = this;
 			if (success === void 0) { success = null; }
 			if (error === void 0) { error = null; }
 			path = this.pathPrefix + path;
 			this.toLoad++;
-			AssetManager.downloadBinary(path, function (data) {
+			this.downloadBinary(path, function (data) {
 				_this.assets[path] = data;
 				if (success)
 					success(path, data);
@@ -2223,7 +2231,7 @@ var spine;
 			if (error === void 0) { error = null; }
 			path = this.pathPrefix + path;
 			this.toLoad++;
-			AssetManager.downloadText(path, function (data) {
+			this.downloadText(path, function (data) {
 				_this.assets[path] = data;
 				if (success)
 					success(path, data);
@@ -2242,12 +2250,13 @@ var spine;
 			if (success === void 0) { success = null; }
 			if (error === void 0) { error = null; }
 			path = this.pathPrefix + path;
+			var storagePath = path;
 			this.toLoad++;
 			var img = new Image();
 			img.crossOrigin = "anonymous";
 			img.onload = function (ev) {
 				var texture = _this.textureLoader(img);
-				_this.assets[path] = texture;
+				_this.assets[storagePath] = texture;
 				_this.toLoad--;
 				_this.loaded++;
 				if (success)
@@ -2260,31 +2269,9 @@ var spine;
 				if (error)
 					error(path, "Couldn't load image " + path);
 			};
+			if (this.rawDataUris[path])
+				path = this.rawDataUris[path];
 			img.src = path;
-		};
-		AssetManager.prototype.loadTextureData = function (path, data, success, error) {
-			var _this = this;
-			if (success === void 0) { success = null; }
-			if (error === void 0) { error = null; }
-			path = this.pathPrefix + path;
-			this.toLoad++;
-			var img = new Image();
-			img.onload = function (ev) {
-				var texture = _this.textureLoader(img);
-				_this.assets[path] = texture;
-				_this.toLoad--;
-				_this.loaded++;
-				if (success)
-					success(path, img);
-			};
-			img.onerror = function (ev) {
-				_this.errors[path] = "Couldn't load image " + path;
-				_this.toLoad--;
-				_this.loaded++;
-				if (error)
-					error(path, "Couldn't load image " + path);
-			};
-			img.src = data;
 		};
 		AssetManager.prototype.loadTextureAtlas = function (path, success, error) {
 			var _this = this;
@@ -2293,12 +2280,12 @@ var spine;
 			var parent = path.lastIndexOf("/") >= 0 ? path.substring(0, path.lastIndexOf("/")) : "";
 			path = this.pathPrefix + path;
 			this.toLoad++;
-			AssetManager.downloadText(path, function (atlasData) {
+			this.downloadText(path, function (atlasData) {
 				var pagesLoaded = { count: 0 };
 				var atlasPages = new Array();
 				try {
 					var atlas = new spine.TextureAtlas(atlasData, function (path) {
-						atlasPages.push(parent + "/" + path);
+						atlasPages.push(parent == "" ? path : parent + "/" + path);
 						var image = document.createElement("img");
 						image.width = 16;
 						image.height = 16;
@@ -2322,7 +2309,7 @@ var spine;
 							if (!pageLoadError) {
 								try {
 									var atlas = new spine.TextureAtlas(atlasData, function (path) {
-										return _this.get(parent + "/" + path);
+										return _this.get(parent == "" ? path : parent + "/" + path);
 									});
 									_this.assets[path] = atlas;
 									if (success)
@@ -8521,6 +8508,8 @@ var spine;
 					this.texture = this.context.gl.createTexture();
 				}
 				this.bind();
+				if (GLTexture.DISABLE_UNPACK_PREMULTIPLIED_ALPHA_WEBGL)
+					gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this._image);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, useMipMaps ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
@@ -8550,6 +8539,7 @@ var spine;
 				var gl = this.context.gl;
 				gl.deleteTexture(this.texture);
 			};
+			GLTexture.DISABLE_UNPACK_PREMULTIPLIED_ALPHA_WEBGL = false;
 			return GLTexture;
 		}(spine.Texture));
 		webgl.GLTexture = GLTexture;
