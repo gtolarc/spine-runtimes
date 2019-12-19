@@ -11054,12 +11054,13 @@ var spine;
 				var indices = _this.indices = new Uint16Array(maxVertices * 3);
 				var geo = new THREE.BufferGeometry();
 				var vertexBuffer = _this.vertexBuffer = new THREE.InterleavedBuffer(vertices, MeshBatcher.VERTEX_SIZE);
-				vertexBuffer.dynamic = true;
-				geo.addAttribute("position", new THREE.InterleavedBufferAttribute(vertexBuffer, 3, 0, false));
-				geo.addAttribute("color", new THREE.InterleavedBufferAttribute(vertexBuffer, 4, 3, false));
-				geo.addAttribute("uv", new THREE.InterleavedBufferAttribute(vertexBuffer, 2, 7, false));
+				vertexBuffer.usage = WebGLRenderingContext.DYNAMIC_DRAW;
+				geo.setAttribute("position", new THREE.InterleavedBufferAttribute(vertexBuffer, 3, 0, false));
+				geo.setAttribute("color", new THREE.InterleavedBufferAttribute(vertexBuffer, 4, 3, false));
+				geo.setAttribute("uv", new THREE.InterleavedBufferAttribute(vertexBuffer, 2, 7, false));
 				geo.setIndex(new THREE.BufferAttribute(indices, 1));
-				geo.getIndex().dynamic = true;
+				geo.getIndex().usage = WebGLRenderingContext.DYNAMIC_DRAW;
+				;
 				geo.drawRange.start = 0;
 				geo.drawRange.count = 0;
 				_this.geometry = geo;
@@ -11068,7 +11069,15 @@ var spine;
 			}
 			MeshBatcher.prototype.dispose = function () {
 				this.geometry.dispose();
-				this.material.dispose();
+				if (this.material instanceof THREE.Material)
+					this.material.dispose();
+				else if (this.material) {
+					for (var i = 0; i < this.material.length; i++) {
+						var material = this.material[i];
+						if (material instanceof THREE.Material)
+							material.dispose();
+					}
+				}
 			};
 			MeshBatcher.prototype.clear = function () {
 				var geo = this.geometry;
@@ -11571,6 +11580,7 @@ var spine;
 			this.currentViewport = null;
 			this.previousViewport = null;
 			this.viewportTransitionStart = 0;
+			this.stopRequestAnimationFrame = false;
 			this.cancelId = 0;
 			if (typeof parent === "string")
 				this.parent = document.getElementById(parent);
@@ -11910,7 +11920,7 @@ var spine;
 		SpinePlayer.prototype.drawFrame = function (requestNextFrame) {
 			var _this = this;
 			if (requestNextFrame === void 0) { requestNextFrame = true; }
-			if (requestNextFrame)
+			if (requestNextFrame && !this.stopRequestAnimationFrame)
 				requestAnimationFrame(function () { return _this.drawFrame(); });
 			var ctx = this.context;
 			var gl = ctx.gl;
@@ -11967,7 +11977,7 @@ var spine;
 				this.sceneRenderer.begin();
 				if (this.config.backgroundImage && this.config.backgroundImage.url) {
 					var bgImage = this.assetManager.get(this.config.backgroundImage.url);
-					if (!this.config.backgroundImage.x) {
+					if (!(this.config.backgroundImage.hasOwnProperty("x") && this.config.backgroundImage.hasOwnProperty("y") && this.config.backgroundImage.hasOwnProperty("width") && this.config.backgroundImage.hasOwnProperty("height"))) {
 						this.sceneRenderer.drawTexture(bgImage, viewport.x, viewport.y, viewport.width, viewport.height);
 					}
 					else {
@@ -12369,6 +12379,9 @@ var spine;
 				width: size.x,
 				height: size.y
 			};
+		};
+		SpinePlayer.prototype.stopRendering = function () {
+			this.stopRequestAnimationFrame = true;
 		};
 		SpinePlayer.HOVER_COLOR_INNER = new spine.Color(0.478, 0, 0, 0.25);
 		SpinePlayer.HOVER_COLOR_OUTER = new spine.Color(1, 1, 1, 1);

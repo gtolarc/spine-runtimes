@@ -320,6 +320,8 @@ module spine {
 		private selectedBones: Bone[];
 		private parent: HTMLElement;
 
+		private stopRequestAnimationFrame = false;
+
 		constructor(parent: HTMLElement | string, private config: SpinePlayerConfig) {
 			if (typeof parent === "string") this.parent = document.getElementById(parent);
 			else this.parent = parent;
@@ -717,7 +719,7 @@ module spine {
 		}
 
 		drawFrame (requestNextFrame = true) {
-			if (requestNextFrame) requestAnimationFrame(() => this.drawFrame());
+			if (requestNextFrame && !this.stopRequestAnimationFrame) requestAnimationFrame(() => this.drawFrame());
 			let ctx = this.context;
 			let gl = ctx.gl;
 
@@ -794,7 +796,7 @@ module spine {
 				// Draw background image if given
 				if (this.config.backgroundImage && this.config.backgroundImage.url) {
 					let bgImage = this.assetManager.get(this.config.backgroundImage.url);
-					if (!this.config.backgroundImage.x) {
+					if (!(this.config.backgroundImage.hasOwnProperty("x") && this.config.backgroundImage.hasOwnProperty("y") && this.config.backgroundImage.hasOwnProperty("width") && this.config.backgroundImage.hasOwnProperty("height"))) {
 						this.sceneRenderer.drawTexture(bgImage, viewport.x, viewport.y, viewport.width, viewport.height);
 					} else {
 						this.sceneRenderer.drawTexture(bgImage, this.config.backgroundImage.x, this.config.backgroundImage.y, this.config.backgroundImage.width, this.config.backgroundImage.height);
@@ -1231,6 +1233,10 @@ module spine {
 				width: size.x,
 				height: size.y
 			};
+		}
+
+		public stopRendering() {
+			this.stopRequestAnimationFrame = true;
 		}
 	}
 

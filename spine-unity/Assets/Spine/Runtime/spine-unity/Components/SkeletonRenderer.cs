@@ -61,6 +61,15 @@ namespace Spine.Unity {
 		/// <summary>Skin name to use when the Skeleton is initialized.</summary>
 		[SerializeField] [SpineSkin(defaultAsEmptyString:true)] public string initialSkinName;
 
+		/// <summary>Enable this parameter when overwriting the Skeleton's skin from an editor script.
+		/// Otherwise any changes will be overwritten by the next inspector update.</summary>
+		#if UNITY_EDITOR
+		public bool EditorSkipSkinSync {
+			get { return editorSkipSkinSync; }
+			set { editorSkipSkinSync = value; }
+		}
+		protected bool editorSkipSkinSync = false;
+		#endif
 		/// <summary>Flip X and Y to use when the Skeleton is initialized.</summary>
 		[SerializeField] public bool initialFlipX, initialFlipY;
 		#endregion
@@ -96,8 +105,9 @@ namespace Spine.Unity {
 
 		#if PER_MATERIAL_PROPERTY_BLOCKS
 		/// <summary> Applies only when 3+ submeshes are used (2+ materials with alternating order, e.g. "A B A").
-		/// If true, MaterialPropertyBlocks are assigned at each material to prevent aggressive batching of submeshes
-		/// by e.g. the LWRP renderer, leading to incorrect draw order (e.g. "A1 B A2" changed to "A1A2 B").
+		/// If true, GPU instancing is disabled at all materials and MaterialPropertyBlocks are assigned at each
+		/// material to prevent aggressive batching of submeshes by e.g. the LWRP renderer, leading to incorrect
+		/// draw order (e.g. "A1 B A2" changed to "A1A2 B").
 		/// You can disable this parameter when everything is drawn correctly to save the additional performance cost.
 		/// </summary>
 		public bool fixDrawOrder = false;
@@ -287,12 +297,8 @@ namespace Spine.Unity {
 
 			// Clear
 			{
-				if (meshFilter != null)
-					meshFilter.sharedMesh = null;
-
-				meshRenderer = GetComponent<MeshRenderer>();
-				if (meshRenderer != null && meshRenderer.enabled) meshRenderer.sharedMaterial = null;
-
+				// Note: do not reset meshFilter.sharedMesh or meshRenderer.sharedMaterial to null,
+				// otherwise constant reloading will be triggered at prefabs.
 				currentInstructions.Clear();
 				rendererBuffers.Clear();
 				meshGenerator.Begin();
@@ -342,6 +348,15 @@ namespace Spine.Unity {
 		public virtual void LateUpdate () {
 			if (!valid) return;
 
+			#if UNITY_EDITOR && NEW_PREFAB_SYSTEM
+			// Don't store mesh or material at the prefab, otherwise it will permanently reload
+			var prefabType = UnityEditor.PrefabUtility.GetPrefabAssetType(this);
+			if (!UnityEditor.PrefabUtility.IsPartOfPrefabInstance(this) &&
+				(prefabType == UnityEditor.PrefabAssetType.Regular || prefabType == UnityEditor.PrefabAssetType.Variant)) {
+				return;
+			}
+			#endif
+
 			#if SPINE_OPTIONAL_RENDEROVERRIDE
 			bool doMeshOverride = generateMeshOverride != null;
 			if ((!meshRenderer.enabled)	&& !doMeshOverride) return;
@@ -387,17 +402,17 @@ namespace Spine.Unity {
 				MeshGenerator.GenerateSkeletonRendererInstruction(currentInstructions, skeleton, customSlotMaterials, separatorSlots, doMeshOverride, this.immutableTriangles);
 
 				// STEP 1.9. Post-process workingInstructions. ==================================================================================
-				#if SPINE_OPTIONAL_MATERIALOVERRIDE
+#if SPINE_OPTIONAL_MATERIALOVERRIDE
 				if (customMaterialOverride.Count > 0) // isCustomMaterialOverridePopulated
 					MeshGenerator.TryReplaceMaterials(workingSubmeshInstructions, customMaterialOverride);
-				#endif
+#endif
 
-				#if SPINE_OPTIONAL_RENDEROVERRIDE
+#if SPINE_OPTIONAL_RENDEROVERRIDE
 				if (doMeshOverride) {
 					this.generateMeshOverride(currentInstructions);
 					if (disableRenderingOnOverride) return;
 				}
-				#endif
+#endif
 
 				updateTriangles = SkeletonRendererInstruction.GeometryNotEqual(currentInstructions, currentSmartMesh.instructionUsed);
 
@@ -434,7 +449,7 @@ namespace Spine.Unity {
 			}
 			if (materialsChanged && (this.maskMaterials.AnyMaterialCreated)) {
 				this.maskMaterials = new SpriteMaskInteractionMaterials();
-			}	
+			}
 
 			meshGenerator.FillLateVertexData(currentMesh);
 
@@ -450,7 +465,7 @@ namespace Spine.Unity {
 
 			#if PER_MATERIAL_PROPERTY_BLOCKS
 			if (fixDrawOrder && meshRenderer.sharedMaterials.Length > 2) {
-				SetDrawOrderMaterialPropertyBlocks();
+				SetMaterialSettingsToFixDrawOrder();
 			}
 			#endif
 		}
@@ -627,9 +642,9 @@ namespace Spine.Unity {
 		/// Otherwise, e.g. when using Lightweight Render Pipeline, deliberately separated draw calls
 		/// "A1 B A2" are reordered to "A1A2 B", regardless of batching-related project settings.
 		/// </summary>
-		private void SetDrawOrderMaterialPropertyBlocks() {
+		private void SetMaterialSettingsToFixDrawOrder() {
 			if (reusedPropertyBlock == null) reusedPropertyBlock = new MaterialPropertyBlock();
-			
+
 			bool hasPerRendererBlock = meshRenderer.HasPropertyBlock();
 			if (hasPerRendererBlock) {
 				meshRenderer.GetPropertyBlock(reusedPropertyBlock);
@@ -641,6 +656,8 @@ namespace Spine.Unity {
 				// material instances (not in terms of memory cost or leakage).
 				reusedPropertyBlock.SetFloat(SUBMESH_DUMMY_PARAM_ID, i);
 				meshRenderer.SetPropertyBlock(reusedPropertyBlock, i);
+
+				meshRenderer.sharedMaterials[i].enableInstancing = false;
 			}
 		}
 		#endif
