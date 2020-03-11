@@ -1,8 +1,8 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated May 1, 2019. Replaces all prior versions.
+ * Last updated January 1, 2020. Replaces all prior versions.
  *
- * Copyright (c) 2013-2019, Esoteric Software LLC
+ * Copyright (c) 2013-2020, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
@@ -15,16 +15,16 @@
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
- * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SPINE RUNTIMES ARE PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
+ * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 using UnityEngine;
@@ -115,6 +115,15 @@ namespace Spine.Unity.Editor {
 			EditorGUILayout.LabelField("UI", EditorStyles.boldLabel);
 			EditorGUILayout.PropertyField(raycastTarget);
 
+			EditorGUILayout.BeginHorizontal(GUILayout.Height(EditorGUIUtility.singleLineHeight + 5));
+			EditorGUILayout.PrefixLabel("Match RectTransform with Mesh");
+			if (GUILayout.Button("Match", EditorStyles.miniButton, GUILayout.Width(65f))) {
+				foreach (var skeletonGraphic in targets) {
+					MatchRectTransformWithBounds((SkeletonGraphic)skeletonGraphic);
+				}
+			}
+			EditorGUILayout.EndHorizontal();
+
 			bool wasChanged = EditorGUI.EndChangeCheck();
 
 			if (wasChanged)
@@ -125,29 +134,12 @@ namespace Spine.Unity.Editor {
 		[MenuItem("CONTEXT/SkeletonGraphic/Match RectTransform with Mesh Bounds")]
 		static void MatchRectTransformWithBounds (MenuCommand command) {
 			var skeletonGraphic = (SkeletonGraphic)command.context;
-			Mesh mesh = skeletonGraphic.GetLastMesh();
-			if (mesh == null) {
+			MatchRectTransformWithBounds(skeletonGraphic);
+		}
+
+		static void MatchRectTransformWithBounds (SkeletonGraphic skeletonGraphic) {
+			if (!skeletonGraphic.MatchRectTransformWithBounds())
 				Debug.Log("Mesh was not previously generated.");
-				return;
-			}
-
-			if (mesh.vertexCount == 0) {
-				skeletonGraphic.rectTransform.sizeDelta = new Vector2(50f, 50f);
-				skeletonGraphic.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-				return;
-			}
-
-			mesh.RecalculateBounds();
-			var bounds = mesh.bounds;
-			var size = bounds.size;
-			var center = bounds.center;
-			var p = new Vector2(
-				0.5f - (center.x / size.x),
-				0.5f - (center.y / size.y)
-			);
-
-			skeletonGraphic.rectTransform.sizeDelta = size;
-			skeletonGraphic.rectTransform.pivot = p;
 		}
 
 		[MenuItem("GameObject/Spine/SkeletonGraphic (UnityUI)", false, 15)]
@@ -200,7 +192,6 @@ namespace Spine.Unity.Editor {
 			graphic.initialSkinName = skin.Name;
 			graphic.Skeleton.UpdateWorldTransform();
 			graphic.UpdateMesh();
-
 			return graphic;
 		}
 

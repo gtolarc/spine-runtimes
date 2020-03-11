@@ -1343,7 +1343,7 @@ declare module spine.threejs {
 		private verticesLength;
 		private indices;
 		private indicesLength;
-		constructor(maxVertices?: number);
+		constructor(maxVertices?: number, materialCustomizer?: SkeletonMeshMaterialParametersCustomizer);
 		dispose(): void;
 		clear(): void;
 		begin(): void;
@@ -1353,8 +1353,11 @@ declare module spine.threejs {
 	}
 }
 declare module spine.threejs {
+	interface SkeletonMeshMaterialParametersCustomizer {
+		(materialParameters: THREE.ShaderMaterialParameters): void;
+	}
 	class SkeletonMeshMaterial extends THREE.ShaderMaterial {
-		constructor();
+		constructor(customizer: SkeletonMeshMaterialParametersCustomizer);
 	}
 	class SkeletonMesh extends THREE.Object3D {
 		tempPos: Vector2;
@@ -1372,7 +1375,8 @@ declare module spine.threejs {
 		static VERTEX_SIZE: number;
 		private vertices;
 		private tempColor;
-		constructor(skeletonData: SkeletonData);
+		private materialCustomizer;
+		constructor(skeletonData: SkeletonData, materialCustomizer?: SkeletonMeshMaterialParametersCustomizer);
 		update(deltaTime: number): void;
 		dispose(): void;
 		private clearBatches;

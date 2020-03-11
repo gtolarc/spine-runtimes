@@ -1,8 +1,8 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated May 1, 2019. Replaces all prior versions.
+ * Last updated January 1, 2020. Replaces all prior versions.
  *
- * Copyright (c) 2013-2019, Esoteric Software LLC
+ * Copyright (c) 2013-2020, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
@@ -15,16 +15,16 @@
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
  *
- * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, BUSINESS
- * INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SPINE RUNTIMES ARE PROVIDED BY ESOTERIC SOFTWARE LLC "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTWARE LLC BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
+ * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #pragma warning disable 0219
@@ -37,6 +37,10 @@
 
 #if UNITY_2018_3 || UNITY_2019 || UNITY_2018_3_OR_NEWER
 #define NEW_PREFAB_SYSTEM
+#endif
+
+#if UNITY_2018_3_OR_NEWER
+#define NEW_PREFERENCES_SETTINGS_PROVIDER
 #endif
 
 using UnityEngine;
@@ -492,7 +496,10 @@ namespace Spine.Unity.Editor {
 				Texture2D texture = (Texture2D)AssetDatabase.LoadAssetAtPath(texturePath, typeof(Texture2D));
 				bool textureIsUninitialized = texturesWithoutMetaFile != null && texturesWithoutMetaFile.Contains(texturePath);
 				if (SpineEditorUtilities.Preferences.setTextureImporterSettings && textureIsUninitialized) {
-					SetDefaultTextureSettings(texturePath, atlasAsset);
+					if (string.IsNullOrEmpty(SpineEditorUtilities.Preferences.textureSettingsReference))
+						SetDefaultTextureSettings(texturePath, atlasAsset);
+					else
+						SetReferenceTextureSettings(texturePath, atlasAsset, SpineEditorUtilities.Preferences.textureSettingsReference);
 				}
 
 				string pageName = Path.GetFileNameWithoutExtension(pageFiles[i]);
@@ -506,6 +513,7 @@ namespace Spine.Unity.Editor {
 
 				if (mat == null) {
 					mat = new Material(Shader.Find(SpineEditorUtilities.Preferences.defaultShader));
+					ApplyPMAOrStraightAlphaSettings(mat, SpineEditorUtilities.Preferences.textureSettingsReference);
 					AssetDatabase.CreateAsset(mat, materialPath);
 				} else {
 					vestigialMaterials.Remove(mat);
@@ -515,8 +523,7 @@ namespace Spine.Unity.Editor {
 					mat.mainTexture = texture;
 
 				EditorUtility.SetDirty(mat);
-				AssetDatabase.SaveAssets();
-
+				// note: don't call AssetDatabase.SaveAssets() since this would trigger OnPostprocessAllAssets() every time unnecessarily.
 				populatingMaterials.Add(mat); //atlasAsset.materials[i] = mat;
 			}
 
@@ -587,9 +594,65 @@ namespace Spine.Unity.Editor {
 			AssetDatabase.SaveAssets();
 			return true;
 		}
-#endregion
 
-#region Import SkeletonData (json or binary)
+	#if NEW_PREFERENCES_SETTINGS_PROVIDER
+		static bool SetReferenceTextureSettings (string texturePath, SpineAtlasAsset atlasAsset, string referenceAssetPath) {
+			var texturePreset = AssetDatabase.LoadAssetAtPath<UnityEditor.Presets.Preset>(referenceAssetPath);
+			bool isTexturePreset = texturePreset != null && texturePreset.GetTargetTypeName() == "TextureImporter";
+			if (!isTexturePreset)
+				return SetDefaultTextureSettings(texturePath, atlasAsset);
+
+			TextureImporter texImporter = (TextureImporter)TextureImporter.GetAtPath(texturePath);
+			if (texImporter == null) {
+				Debug.LogWarning(string.Format("{0}: Texture asset \"{1}\" not found. Skipping. Please check your atlas file for renamed files.", atlasAsset.name, texturePath), atlasAsset);
+				return false;
+			}
+
+			texturePreset.ApplyTo(texImporter);
+			AssetDatabase.ImportAsset(texturePath);
+			AssetDatabase.SaveAssets();
+			return true;
+		}
+	#else
+		static bool SetReferenceTextureSettings (string texturePath, SpineAtlasAsset atlasAsset, string referenceAssetPath) {
+			TextureImporter reference = TextureImporter.GetAtPath(referenceAssetPath) as TextureImporter;
+			if (reference == null)
+				return SetDefaultTextureSettings(texturePath, atlasAsset);
+
+			TextureImporter texImporter = (TextureImporter)TextureImporter.GetAtPath(texturePath);
+			if (texImporter == null) {
+				Debug.LogWarning(string.Format("{0}: Texture asset \"{1}\" not found. Skipping. Please check your atlas file for renamed files.", atlasAsset.name, texturePath), atlasAsset);
+				return false;
+			}
+
+			texImporter.sRGBTexture = reference.sRGBTexture;
+			texImporter.textureCompression = reference.textureCompression;
+			texImporter.alphaSource = reference.alphaSource;
+			texImporter.mipmapEnabled = reference.mipmapEnabled;
+			texImporter.alphaIsTransparency = reference.alphaIsTransparency;
+			texImporter.spriteImportMode = reference.spriteImportMode;
+			texImporter.maxTextureSize = reference.maxTextureSize;
+			texImporter.isReadable = reference.isReadable;
+			texImporter.filterMode = reference.filterMode;
+			texImporter.mipmapFilter = reference.mipmapFilter;
+			texImporter.textureType = reference.textureType;
+
+			EditorUtility.SetDirty(texImporter);
+			AssetDatabase.ImportAsset(texturePath);
+			AssetDatabase.SaveAssets();
+			return true;
+		}
+	#endif
+
+		static void ApplyPMAOrStraightAlphaSettings (Material material, string referenceTextureSettings) {
+			bool isUsingPMAWorkflow = string.IsNullOrEmpty(referenceTextureSettings) ||
+				(!referenceTextureSettings.ToLower().Contains("straight") && referenceTextureSettings.ToLower().Contains("pma"));
+
+			MaterialChecks.EnablePMAAtMaterial(material, isUsingPMAWorkflow);
+		}
+		#endregion
+
+		#region Import SkeletonData (json or binary)
 		internal static string GetSkeletonDataAssetFilePath(TextAsset spineJson) {
 			string primaryName = Path.GetFileNameWithoutExtension(spineJson.name);
 			string assetPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(spineJson)).Replace('\\', '/');
