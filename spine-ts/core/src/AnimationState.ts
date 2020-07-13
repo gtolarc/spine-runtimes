@@ -90,6 +90,8 @@ module spine {
 
 		trackEntryPool = new Pool<TrackEntry>(() => new TrackEntry());
 
+		forceZ: { slots: string[]; z: number };
+
 		constructor (data: AnimationStateData) {
 			this.data = data;
 		}
@@ -544,9 +546,10 @@ module spine {
 		/** Sets an animation by name.
 	 	*
 	 	* {@link #setAnimationWith(}. */
-		setAnimation (trackIndex: number, animationName: string, loop: boolean) {
+		setAnimation (trackIndex: number, animationName: string, loop: boolean, forceZ?: { slots: string[]; z: number }) {
 			let animation = this.data.skeletonData.findAnimation(animationName);
 			if (animation == null) throw new Error("Animation not found: " + animationName);
+			if (forceZ) this.forceZ = forceZ;
 			return this.setAnimationWith(trackIndex, animation, loop);
 		}
 

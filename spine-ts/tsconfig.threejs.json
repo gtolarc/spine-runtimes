@@ -1,5 +1,6 @@
 {
 	"compilerOptions": {
+		"target": "esnext",
 		"module": "none",
 		"noImplicitAny": true,
 		"removeComments": true,
@@ -15,7 +16,7 @@
 	"exclude": [
 		"canvas",
 		"webgl",
-		"widget",
+		"player",
 		"build"
 	]
 }

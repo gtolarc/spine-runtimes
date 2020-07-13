@@ -77,6 +77,7 @@ module spine.threejs {
 		state: AnimationState;
 		zOffset: number = 0.1;
 		vertexEffect: VertexEffect;
+		premultipliedAlpha: boolean = true;
 
 		private batches = new Array<MeshBatcher>();
 		private nextBatchIndex = 0;
@@ -89,12 +90,17 @@ module spine.threejs {
 		private tempColor = new Color();
 		private materialCustomizer: SkeletonMeshMaterialParametersCustomizer;
 
-		constructor (skeletonData: SkeletonData, materialCustomizer: SkeletonMeshMaterialParametersCustomizer = (parameters) => { }) {
+		constructor(
+			skeletonData: SkeletonData,
+			materialCustomizer: SkeletonMeshMaterialParametersCustomizer = (parameters) => {},
+			premultipliedAlpha: boolean
+		) {
 			super();
 			this.materialCustomizer = materialCustomizer;
 			this.skeleton = new Skeleton(skeletonData);
 			let animData = new AnimationStateData(skeletonData);
 			this.state = new AnimationState(animData);
+			this.premultipliedAlpha = premultipliedAlpha;
 		}
 
 		update(deltaTime: number) {
@@ -201,6 +207,11 @@ module spine.threejs {
 							skeletonColor.g * slotColor.g * attachmentColor.g,
 							skeletonColor.b * slotColor.b * attachmentColor.b,
 							alpha);
+					if (this.premultipliedAlpha) {
+						color.r *= color.a;
+						color.g *= color.a;
+						color.b *= color.a;
+					}
 
 					let finalVertices: ArrayLike<number>;
 					let finalVerticesLength: number;
@@ -302,6 +313,10 @@ module spine.threejs {
 						batchMaterial.uniforms.map.value = texture.texture;
 					}
 					batchMaterial.needsUpdate = true;
+
+					if (this.state.forceZ?.slots.includes(slot.data.name)) {
+						if (z < this.state.forceZ.z) z = this.state.forceZ.z;
+					}
 
 					batch.batch(finalVertices, finalVerticesLength, finalIndices, finalIndicesLength, z);
 					z += zOffset;
