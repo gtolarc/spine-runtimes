@@ -144,6 +144,8 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 		local prx = 0
 		if s > 0.0001 then
 			s = math_abs(pa * pd - pb * pc) / s
+			pa = pa / self.skeleton.scaleX
+			pc = pc / self.skeleton.scaleY
 			pb = pc * s
 			pd = pa * s
 			prx = math_deg(math_atan2(pc, pa));
@@ -162,6 +164,7 @@ function Bone:updateWorldTransformWith (x, y, rotation, scaleX, scaleY, shearX, 
 		self.b = pa * lb - pb * ld
 		self.c = pc * la + pd * lc
 		self.d = pc * lb + pd * ld
+		return
 	elseif transformMode == TransformMode.noScale or transformMode == TransformMode.noScaleOrReflection then
 		local cos = math_cos(math_rad(rotation))
 		local sin = math_sin(math_rad(rotation))

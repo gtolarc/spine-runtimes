@@ -55,7 +55,7 @@ namespace Spine.Unity.Editor {
 			}
 		}
 
-		void OnEnable () {
+		void InitializeEditor () {
 			skeletonRenderer = serializedObject.FindProperty("skeletonRenderer");
 			slotName = serializedObject.FindProperty("slotName");
 			isTrigger = serializedObject.FindProperty("isTrigger");
@@ -64,11 +64,16 @@ namespace Spine.Unity.Editor {
 		}
 
 		public override void OnInspectorGUI () {
+
 			#if !NEW_PREFAB_SYSTEM
 			bool isInspectingPrefab = (PrefabUtility.GetPrefabType(target) == PrefabType.Prefab);
 			#else
 			bool isInspectingPrefab = false;
 			#endif
+
+			// Note: when calling InitializeEditor() in OnEnable, it throws exception
+			// "SerializedObjectNotCreatableException: Object at index 0 is null".
+			InitializeEditor();
 
 			// Try to auto-assign SkeletonRenderer field.
 			if (skeletonRenderer.objectReferenceValue == null) {
@@ -80,6 +85,7 @@ namespace Spine.Unity.Editor {
 
 				skeletonRenderer.objectReferenceValue = foundSkeletonRenderer;
 				serializedObject.ApplyModifiedProperties();
+				InitializeEditor();
 			}
 
 			var skeletonRendererValue = skeletonRenderer.objectReferenceValue as SkeletonRenderer;
@@ -87,7 +93,7 @@ namespace Spine.Unity.Editor {
 				using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox)) {
 					EditorGUILayout.HelpBox("It's ideal to add BoundingBoxFollower to a separate child GameObject of the Spine GameObject.", MessageType.Warning);
 
-					if (GUILayout.Button(new GUIContent("Move BoundingBoxFollower to new GameObject", Icons.boundingBox), GUILayout.Height(50f))) {
+					if (GUILayout.Button(new GUIContent("Move BoundingBoxFollower to new GameObject", Icons.boundingBox), GUILayout.Height(30f))) {
 						AddBoundingBoxFollowerChild(skeletonRendererValue, follower);
 						DestroyImmediate(follower);
 						return;
@@ -101,6 +107,7 @@ namespace Spine.Unity.Editor {
 			EditorGUILayout.PropertyField(slotName, new GUIContent("Slot"));
 			if (EditorGUI.EndChangeCheck()) {
 				serializedObject.ApplyModifiedProperties();
+				InitializeEditor();
 				#if !NEW_PREFAB_SYSTEM
 				if (!isInspectingPrefab)
 					rebuildRequired = true;
@@ -118,6 +125,7 @@ namespace Spine.Unity.Editor {
 
 				if (clearStateChanged || triggerChanged) {
 					serializedObject.ApplyModifiedProperties();
+					InitializeEditor();
 					if (triggerChanged)
 						foreach (var col in follower.colliderTable.Values)
 							col.isTrigger = isTrigger.boolValue;
@@ -152,6 +160,8 @@ namespace Spine.Unity.Editor {
 
 			}
 
+			if (follower.Slot == null)
+				follower.Initialize(false);
 			bool hasBoneFollower = follower.GetComponent<BoneFollower>() != null;
 			if (!hasBoneFollower) {
 				bool buttonDisabled = follower.Slot == null;

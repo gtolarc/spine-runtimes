@@ -37,6 +37,7 @@ import com.badlogic.gdx.backends.lwjgl.LwjglFileHandle;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Pool;
+
 import com.esotericsoftware.spine.AnimationState.AnimationStateListener;
 import com.esotericsoftware.spine.AnimationState.TrackEntry;
 import com.esotericsoftware.spine.attachments.AttachmentLoader;
@@ -651,13 +652,14 @@ public class AnimationStateTests {
 
 			expect(0, "start", 0, 0.4f), //
 			expect(0, "event 0", 0.1f, 0.5f), //
+
+			expect(1, "end", 0.8f, 0.9f), //
+			expect(1, "dispose", 0.8f, 0.9f), //
+
 			expect(0, "event 14", 0.5f, 0.9f), //
 
 			expect(2, "end", 0.8f, 1.1f), //
 			expect(2, "dispose", 0.8f, 1.1f), //
-
-			expect(1, "end", 0.8f, 1.1f), //
-			expect(1, "dispose", 0.8f, 1.1f), //
 
 			expect(0, "event 30", 1, 1.4f), //
 			expect(0, "complete", 1, 1.4f), //
@@ -794,6 +796,48 @@ public class AnimationStateTests {
 			log("TEST 28 FAILED! " + counter);
 			System.exit(0);
 		}
+
+		setup("looping", // 28
+			expect(0, "start", 0, 0), //
+			expect(0, "event 0", 0, 0), //
+			expect(0, "event 14", 0.5f, 0.5f), //
+			expect(0, "event 30", 1, 1), //
+			expect(0, "complete", 1, 1), //
+			expect(0, "event 0", 1, 1), //
+			expect(0, "event 14", 1.5f, 1.5f), //
+			expect(0, "event 30", 2, 2), //
+			expect(0, "complete", 2, 2), //
+			expect(0, "event 0", 2, 2), //
+			expect(0, "event 14", 2.5f, 2.5f), //
+			expect(0, "end", 2.6f, 2.7f), //
+			expect(0, "dispose", 2.6f, 2.7f) //
+		);
+		state.setAnimation(0, "events0", true).setTrackEnd(2.6f);
+		run(0.1f, 1000, null);
+
+		setup("set next", // 29
+			expect(0, "start", 0, 0), //
+			expect(0, "event 0", 0, 0), //
+			expect(0, "event 14", 0.5f, 0.5f), //
+			expect(0, "event 30", 1, 1), //
+			expect(0, "complete", 1, 1), //
+			expect(0, "interrupt", 1.1f, 1.1f), //
+
+			expect(1, "start", 0.1f, 1.1f), //
+			expect(1, "event 0", 0.1f, 1.1f), //
+
+			expect(0, "end", 1.1f, 1.2f), //
+			expect(0, "dispose", 1.1f, 1.2f), //
+
+			expect(1, "event 14", 0.5f, 1.5f), //
+			expect(1, "event 30", 1, 2), //
+			expect(1, "complete", 1, 2), //
+			expect(1, "end", 1, 2.1f), //
+			expect(1, "dispose", 1, 2.1f) //
+		);
+		state.setAnimation(0, "events0", false);
+		state.addAnimation(0, "events1", false, 0).setTrackEnd(1);
+		run(0.1f, 1000, null);
 
 		System.out.println("AnimationState tests passed.");
 	}

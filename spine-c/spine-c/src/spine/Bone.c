@@ -121,6 +121,8 @@ void spBone_updateWorldTransformWith (spBone* self, float x, float y, float rota
 		float prx, rx, ry, la, lb, lc, ld;
 		if (s > 0.0001f) {
 			s = ABS(pa * pd - pb * pc) / s;
+            pa /= self->skeleton->scaleX;
+            pc /= self->skeleton->scaleY;
 			pb = pc * s;
 			pd = pa * s;
 			prx = ATAN2(pc, pa) * RAD_DEG;

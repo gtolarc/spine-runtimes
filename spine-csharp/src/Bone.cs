@@ -189,6 +189,8 @@ namespace Spine {
 					float s = pa * pa + pc * pc, prx;
 					if (s > 0.0001f) {
 						s = Math.Abs(pa * pd - pb * pc) / s;
+						pa /= skeleton.ScaleX;
+						pc /= skeleton.ScaleY;
 						pb = pc * s;
 						pd = pa * s;
 						prx = MathUtils.Atan2(pc, pa) * MathUtils.RadDeg;

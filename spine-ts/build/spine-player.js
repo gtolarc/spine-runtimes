@@ -675,17 +675,15 @@ var spine;
 			var slot = skeleton.slots[this.slotIndex];
 			if (!slot.bone.active)
 				return;
-			if (direction == MixDirection.mixOut && blend == MixBlend.setup) {
-				var attachmentName_1 = slot.data.attachmentName;
-				slot.setAttachment(attachmentName_1 == null ? null : skeleton.getAttachment(this.slotIndex, attachmentName_1));
+			if (direction == MixDirection.mixOut) {
+				if (blend == MixBlend.setup)
+					this.setAttachment(skeleton, slot, slot.data.attachmentName);
 				return;
 			}
 			var frames = this.frames;
 			if (time < frames[0]) {
-				if (blend == MixBlend.setup || blend == MixBlend.first) {
-					var attachmentName_2 = slot.data.attachmentName;
-					slot.setAttachment(attachmentName_2 == null ? null : skeleton.getAttachment(this.slotIndex, attachmentName_2));
-				}
+				if (blend == MixBlend.setup || blend == MixBlend.first)
+					this.setAttachment(skeleton, slot, slot.data.attachmentName);
 				return;
 			}
 			var frameIndex = 0;
@@ -696,6 +694,9 @@ var spine;
 			var attachmentName = this.attachmentNames[frameIndex];
 			skeleton.slots[this.slotIndex]
 				.setAttachment(attachmentName == null ? null : skeleton.getAttachment(this.slotIndex, attachmentName));
+		};
+		AttachmentTimeline.prototype.setAttachment = function (skeleton, slot, attachmentName) {
+			slot.attachment = attachmentName == null ? null : skeleton.getAttachment(this.slotIndex, attachmentName);
 		};
 		return AttachmentTimeline;
 	}());
@@ -955,8 +956,9 @@ var spine;
 		DrawOrderTimeline.prototype.apply = function (skeleton, lastTime, time, firedEvents, alpha, blend, direction) {
 			var drawOrder = skeleton.drawOrder;
 			var slots = skeleton.slots;
-			if (direction == MixDirection.mixOut && blend == MixBlend.setup) {
-				spine.Utils.arrayCopy(skeleton.slots, 0, skeleton.drawOrder, 0, skeleton.slots.length);
+			if (direction == MixDirection.mixOut) {
+				if (blend == MixBlend.setup)
+					spine.Utils.arrayCopy(skeleton.slots, 0, skeleton.drawOrder, 0, skeleton.slots.length);
 				return;
 			}
 			var frames = this.frames;
@@ -1348,6 +1350,7 @@ var spine;
 		function AnimationState(data) {
 			this.tracks = new Array();
 			this.timeScale = 1;
+			this.unkeyedState = 0;
 			this.events = new Array();
 			this.listeners = new Array();
 			this.queue = new EventQueue(this);
@@ -1437,12 +1440,12 @@ var spine;
 			var events = this.events;
 			var tracks = this.tracks;
 			var applied = false;
-			for (var i = 0, n = tracks.length; i < n; i++) {
-				var current = tracks[i];
+			for (var i_16 = 0, n_1 = tracks.length; i_16 < n_1; i_16++) {
+				var current = tracks[i_16];
 				if (current == null || current.delay > 0)
 					continue;
 				applied = true;
-				var blend = i == 0 ? spine.MixBlend.first : current.mixBlend;
+				var blend = i_16 == 0 ? spine.MixBlend.first : current.mixBlend;
 				var mix = current.alpha;
 				if (current.mixingFrom != null)
 					mix *= this.applyMixingFrom(current, skeleton, blend);
@@ -1451,10 +1454,14 @@ var spine;
 				var animationLast = current.animationLast, animationTime = current.getAnimationTime();
 				var timelineCount = current.animation.timelines.length;
 				var timelines = current.animation.timelines;
-				if ((i == 0 && mix == 1) || blend == spine.MixBlend.add) {
+				if ((i_16 == 0 && mix == 1) || blend == spine.MixBlend.add) {
 					for (var ii = 0; ii < timelineCount; ii++) {
 						spine.Utils.webkit602BugfixHelper(mix, blend);
-						timelines[ii].apply(skeleton, animationLast, animationTime, events, mix, blend, spine.MixDirection.mixIn);
+						var timeline = timelines[ii];
+						if (timeline instanceof spine.AttachmentTimeline)
+							this.applyAttachmentTimeline(timeline, skeleton, animationTime, blend, true);
+						else
+							timeline.apply(skeleton, animationLast, animationTime, events, mix, blend, spine.MixDirection.mixIn);
 					}
 				}
 				else {
@@ -1464,14 +1471,17 @@ var spine;
 						spine.Utils.setArraySize(current.timelinesRotation, timelineCount << 1, null);
 					var timelinesRotation = current.timelinesRotation;
 					for (var ii = 0; ii < timelineCount; ii++) {
-						var timeline = timelines[ii];
-						var timelineBlend = (timelineMode[ii] & (AnimationState.NOT_LAST - 1)) == AnimationState.SUBSEQUENT ? blend : spine.MixBlend.setup;
-						if (timeline instanceof spine.RotateTimeline) {
-							this.applyRotateTimeline(timeline, skeleton, animationTime, mix, timelineBlend, timelinesRotation, ii << 1, firstFrame);
+						var timeline_1 = timelines[ii];
+						var timelineBlend = timelineMode[ii] == AnimationState.SUBSEQUENT ? blend : spine.MixBlend.setup;
+						if (timeline_1 instanceof spine.RotateTimeline) {
+							this.applyRotateTimeline(timeline_1, skeleton, animationTime, mix, timelineBlend, timelinesRotation, ii << 1, firstFrame);
+						}
+						else if (timeline_1 instanceof spine.AttachmentTimeline) {
+							this.applyAttachmentTimeline(timeline_1, skeleton, animationTime, blend, true);
 						}
 						else {
 							spine.Utils.webkit602BugfixHelper(mix, blend);
-							timeline.apply(skeleton, animationLast, animationTime, events, mix, timelineBlend, spine.MixDirection.mixIn);
+							timeline_1.apply(skeleton, animationLast, animationTime, events, mix, timelineBlend, spine.MixDirection.mixIn);
 						}
 					}
 				}
@@ -1480,6 +1490,16 @@ var spine;
 				current.nextAnimationLast = animationTime;
 				current.nextTrackLast = current.trackTime;
 			}
+			var setupState = this.unkeyedState + AnimationState.SETUP;
+			var slots = skeleton.slots;
+			for (var i = 0, n = skeleton.slots.length; i < n; i++) {
+				var slot = slots[i];
+				if (slot.attachmentState == setupState) {
+					var attachmentName = slot.data.attachmentName;
+					slot.attachment = (attachmentName == null ? null : skeleton.getAttachment(slot.data.index, attachmentName));
+				}
+			}
+			this.unkeyedState += 2;
 			this.queue.drain();
 			return applied;
 		};
@@ -1523,16 +1543,11 @@ var spine;
 					var direction = spine.MixDirection.mixOut;
 					var timelineBlend = void 0;
 					var alpha = 0;
-					switch (timelineMode[i] & (AnimationState.NOT_LAST - 1)) {
+					switch (timelineMode[i]) {
 						case AnimationState.SUBSEQUENT:
-							timelineBlend = blend;
-							if (!attachments && timeline instanceof spine.AttachmentTimeline) {
-								if ((timelineMode[i] & AnimationState.NOT_LAST) == AnimationState.NOT_LAST)
-									continue;
-								timelineBlend = spine.MixBlend.setup;
-							}
 							if (!drawOrder && timeline instanceof spine.DrawOrderTimeline)
 								continue;
+							timelineBlend = blend;
 							alpha = alphaMix;
 							break;
 						case AnimationState.FIRST:
@@ -1552,18 +1567,12 @@ var spine;
 					from.totalAlpha += alpha;
 					if (timeline instanceof spine.RotateTimeline)
 						this.applyRotateTimeline(timeline, skeleton, animationTime, alpha, timelineBlend, timelinesRotation, i << 1, firstFrame);
+					else if (timeline instanceof spine.AttachmentTimeline)
+						this.applyAttachmentTimeline(timeline, skeleton, animationTime, timelineBlend, attachments);
 					else {
 						spine.Utils.webkit602BugfixHelper(alpha, blend);
-						if (timelineBlend == spine.MixBlend.setup) {
-							if (timeline instanceof spine.AttachmentTimeline) {
-								if (attachments || (timelineMode[i] & AnimationState.NOT_LAST) == AnimationState.NOT_LAST)
-									direction = spine.MixDirection.mixIn;
-							}
-							else if (timeline instanceof spine.DrawOrderTimeline) {
-								if (drawOrder)
-									direction = spine.MixDirection.mixIn;
-							}
-						}
+						if (drawOrder && timeline instanceof spine.DrawOrderTimeline && timelineBlend == spine.MixBlend.setup)
+							direction = spine.MixDirection.mixIn;
 						timeline.apply(skeleton, animationLast, animationTime, events, alpha, timelineBlend, direction);
 					}
 				}
@@ -1574,6 +1583,31 @@ var spine;
 			from.nextAnimationLast = animationTime;
 			from.nextTrackLast = from.trackTime;
 			return mix;
+		};
+		AnimationState.prototype.applyAttachmentTimeline = function (timeline, skeleton, time, blend, attachments) {
+			var slot = skeleton.slots[timeline.slotIndex];
+			if (!slot.bone.active)
+				return;
+			var frames = timeline.frames;
+			if (time < frames[0]) {
+				if (blend == spine.MixBlend.setup || blend == spine.MixBlend.first)
+					this.setAttachment(skeleton, slot, slot.data.attachmentName, attachments);
+			}
+			else {
+				var frameIndex;
+				if (time >= frames[frames.length - 1])
+					frameIndex = frames.length - 1;
+				else
+					frameIndex = spine.Animation.binarySearch(frames, time) - 1;
+				this.setAttachment(skeleton, slot, timeline.attachmentNames[frameIndex], attachments);
+			}
+			if (slot.attachmentState <= this.unkeyedState)
+				slot.attachmentState = this.unkeyedState + AnimationState.SETUP;
+		};
+		AnimationState.prototype.setAttachment = function (skeleton, slot, attachmentName, attachments) {
+			slot.attachment = attachmentName == null ? null : skeleton.getAttachment(slot.data.index, attachmentName);
+			if (attachments)
+				slot.attachmentState = this.unkeyedState + AnimationState.CURRENT;
 		};
 		AnimationState.prototype.applyRotateTimeline = function (timeline, skeleton, time, alpha, blend, timelinesRotation, i, firstFrame) {
 			if (firstFrame)
@@ -1863,14 +1897,6 @@ var spine;
 					entry = entry.mixingTo;
 				} while (entry != null);
 			}
-			this.propertyIDs.clear();
-			for (var i = this.tracks.length - 1; i >= 0; i--) {
-				var entry = this.tracks[i];
-				while (entry != null) {
-					this.computeNotLast(entry);
-					entry = entry.mixingFrom;
-				}
-			}
 		};
 		AnimationState.prototype.computeHold = function (entry) {
 			var to = entry.mixingTo;
@@ -1911,19 +1937,6 @@ var spine;
 				}
 			}
 		};
-		AnimationState.prototype.computeNotLast = function (entry) {
-			var timelines = entry.animation.timelines;
-			var timelinesCount = entry.animation.timelines.length;
-			var timelineMode = entry.timelineMode;
-			var propertyIDs = this.propertyIDs;
-			for (var i = 0; i < timelinesCount; i++) {
-				if (timelines[i] instanceof spine.AttachmentTimeline) {
-					var timeline = timelines[i];
-					if (!propertyIDs.add(timeline.slotIndex))
-						timelineMode[i] |= AnimationState.NOT_LAST;
-				}
-			}
-		};
 		AnimationState.prototype.getCurrent = function (trackIndex) {
 			if (trackIndex >= this.tracks.length)
 				return null;
@@ -1950,7 +1963,8 @@ var spine;
 		AnimationState.FIRST = 1;
 		AnimationState.HOLD = 2;
 		AnimationState.HOLD_MIX = 3;
-		AnimationState.NOT_LAST = 4;
+		AnimationState.SETUP = 1;
+		AnimationState.CURRENT = 2;
 		return AnimationState;
 	}());
 	spine.AnimationState = AnimationState;
@@ -2550,6 +2564,8 @@ var spine;
 					var prx = 0;
 					if (s > 0.0001) {
 						s = Math.abs(pa * pd - pb * pc) / s;
+						pa /= this.skeleton.scaleX;
+						pc /= this.skeleton.scaleY;
 						pb = pc * s;
 						pd = pa * s;
 						prx = Math.atan2(pc, pa) * spine.MathUtils.radDeg;
@@ -2828,10 +2844,12 @@ var spine;
 					ty = targetY - bone.worldY;
 					break;
 				case spine.TransformMode.NoRotationOrReflection:
-					rotationIK += Math.atan2(pc, pa) * spine.MathUtils.radDeg;
-					var ps = Math.abs(pa * pd - pb * pc) / (pa * pa + pc * pc);
-					pb = -pc * ps;
-					pd = pa * ps;
+					var s = Math.abs(pa * pd - pb * pc) / (pa * pa + pc * pc);
+					var sa = pa / bone.skeleton.scaleX;
+					var sc = pc / bone.skeleton.scaleY;
+					pb = -sc * s * bone.skeleton.scaleX;
+					pd = sa * s * bone.skeleton.scaleY;
+					rotationIK += Math.atan2(sc, sa) * spine.MathUtils.radDeg;
 				default:
 					var x = targetX - p.worldX, y = targetY - p.worldY;
 					var d = pa * pd - pb * pc;
@@ -5074,7 +5092,7 @@ var spine;
 			var clippingPolygon = this.clippingPolygon;
 			SkeletonClipping.makeClockwise(clippingPolygon);
 			var clippingPolygons = this.clippingPolygons = this.triangulator.decompose(clippingPolygon, this.triangulator.triangulate(clippingPolygon));
-			for (var i = 0, n_1 = clippingPolygons.length; i < n_1; i++) {
+			for (var i = 0, n_2 = clippingPolygons.length; i < n_2; i++) {
 				var polygon = clippingPolygons[i];
 				SkeletonClipping.makeClockwise(polygon);
 				polygon.push(polygon[0]);
@@ -7490,9 +7508,7 @@ var spine;
 		};
 		Pool.prototype.freeAll = function (items) {
 			for (var i = 0; i < items.length; i++) {
-				if (items[i].reset)
-					items[i].reset();
-				this.items[i] = items[i];
+				this.free(items[i]);
 			}
 		};
 		Pool.prototype.clear = function () {
@@ -8034,7 +8050,7 @@ var spine;
 			worldVertices[offset + 1] = offsetX * c + offsetY * d + y;
 		};
 		RegionAttachment.prototype.copy = function () {
-			var copy = new RegionAttachment(name);
+			var copy = new RegionAttachment(this.name);
 			copy.region = this.region;
 			copy.rendererObject = this.rendererObject;
 			copy.path = this.path;
@@ -8399,9 +8415,9 @@ var spine;
 						break;
 					}
 					var listeners = _this.listeners;
-					for (var i_16 = 0; i_16 < listeners.length; i_16++) {
-						if (listeners[i_16].down)
-							listeners[i_16].down(_this.currTouch.x, _this.currTouch.y);
+					for (var i_17 = 0; i_17 < listeners.length; i_17++) {
+						if (listeners[i_17].down)
+							listeners[i_17].down(_this.currTouch.x, _this.currTouch.y);
 					}
 					_this.lastX = _this.currTouch.x;
 					_this.lastY = _this.currTouch.y;
@@ -8409,29 +8425,6 @@ var spine;
 					ev.preventDefault();
 				}, false);
 				element.addEventListener("touchend", function (ev) {
-					var touches = ev.changedTouches;
-					for (var i = 0; i < touches.length; i++) {
-						var touch = touches[i];
-						if (_this.currTouch.identifier === touch.identifier) {
-							var rect = element.getBoundingClientRect();
-							var x = _this.currTouch.x = touch.clientX - rect.left;
-							var y = _this.currTouch.y = touch.clientY - rect.top;
-							_this.touchesPool.free(_this.currTouch);
-							var listeners = _this.listeners;
-							for (var i_17 = 0; i_17 < listeners.length; i_17++) {
-								if (listeners[i_17].up)
-									listeners[i_17].up(x, y);
-							}
-							_this.lastX = x;
-							_this.lastY = y;
-							_this.buttonDown = false;
-							_this.currTouch = null;
-							break;
-						}
-					}
-					ev.preventDefault();
-				}, false);
-				element.addEventListener("touchcancel", function (ev) {
 					var touches = ev.changedTouches;
 					for (var i = 0; i < touches.length; i++) {
 						var touch = touches[i];
@@ -8454,6 +8447,29 @@ var spine;
 					}
 					ev.preventDefault();
 				}, false);
+				element.addEventListener("touchcancel", function (ev) {
+					var touches = ev.changedTouches;
+					for (var i = 0; i < touches.length; i++) {
+						var touch = touches[i];
+						if (_this.currTouch.identifier === touch.identifier) {
+							var rect = element.getBoundingClientRect();
+							var x = _this.currTouch.x = touch.clientX - rect.left;
+							var y = _this.currTouch.y = touch.clientY - rect.top;
+							_this.touchesPool.free(_this.currTouch);
+							var listeners = _this.listeners;
+							for (var i_19 = 0; i_19 < listeners.length; i_19++) {
+								if (listeners[i_19].up)
+									listeners[i_19].up(x, y);
+							}
+							_this.lastX = x;
+							_this.lastY = y;
+							_this.buttonDown = false;
+							_this.currTouch = null;
+							break;
+						}
+					}
+					ev.preventDefault();
+				}, false);
 				element.addEventListener("touchmove", function (ev) {
 					if (_this.currTouch == null)
 						return;
@@ -8465,9 +8481,9 @@ var spine;
 							var x = touch.clientX - rect.left;
 							var y = touch.clientY - rect.top;
 							var listeners = _this.listeners;
-							for (var i_19 = 0; i_19 < listeners.length; i_19++) {
-								if (listeners[i_19].dragged)
-									listeners[i_19].dragged(x, y);
+							for (var i_20 = 0; i_20 < listeners.length; i_20++) {
+								if (listeners[i_20].dragged)
+									listeners[i_20].dragged(x, y);
 							}
 							_this.lastX = _this.currTouch.x = x;
 							_this.lastY = _this.currTouch.y = y;
@@ -10322,11 +10338,11 @@ var spine;
 						var nn = clip.worldVerticesLength;
 						var world = this.temp = spine.Utils.setArraySize(this.temp, nn, 0);
 						clip.computeWorldVertices(slot, 0, nn, world, 0, 2);
-						for (var i_20 = 0, n_2 = world.length; i_20 < n_2; i_20 += 2) {
-							var x = world[i_20];
-							var y = world[i_20 + 1];
-							var x2 = world[(i_20 + 2) % world.length];
-							var y2 = world[(i_20 + 3) % world.length];
+						for (var i_21 = 0, n_3 = world.length; i_21 < n_3; i_21 += 2) {
+							var x = world[i_21];
+							var y = world[i_21 + 1];
+							var x2 = world[(i_21 + 2) % world.length];
+							var y2 = world[(i_21 + 3) % world.length];
 							shapes.line(x, y, x2, y2);
 						}
 					}
@@ -10487,7 +10503,7 @@ var spine;
 								var vertexEffect = this.vertexEffect;
 								var verts = clippedVertices;
 								if (!twoColorTint) {
-									for (var v = 0, n_3 = clippedVertices.length; v < n_3; v += vertexSize) {
+									for (var v = 0, n_4 = clippedVertices.length; v < n_4; v += vertexSize) {
 										tempPos.x = verts[v];
 										tempPos.y = verts[v + 1];
 										tempLight.set(verts[v + 2], verts[v + 3], verts[v + 4], verts[v + 5]);
@@ -10506,7 +10522,7 @@ var spine;
 									}
 								}
 								else {
-									for (var v = 0, n_4 = clippedVertices.length; v < n_4; v += vertexSize) {
+									for (var v = 0, n_5 = clippedVertices.length; v < n_5; v += vertexSize) {
 										tempPos.x = verts[v];
 										tempPos.y = verts[v + 1];
 										tempLight.set(verts[v + 2], verts[v + 3], verts[v + 4], verts[v + 5]);
@@ -10536,7 +10552,7 @@ var spine;
 							if (this.vertexEffect != null) {
 								var vertexEffect = this.vertexEffect;
 								if (!twoColorTint) {
-									for (var v = 0, u = 0, n_5 = renderable.numFloats; v < n_5; v += vertexSize, u += 2) {
+									for (var v = 0, u = 0, n_6 = renderable.numFloats; v < n_6; v += vertexSize, u += 2) {
 										tempPos.x = verts[v];
 										tempPos.y = verts[v + 1];
 										tempUv.x = uvs[u];
@@ -10555,7 +10571,7 @@ var spine;
 									}
 								}
 								else {
-									for (var v = 0, u = 0, n_6 = renderable.numFloats; v < n_6; v += vertexSize, u += 2) {
+									for (var v = 0, u = 0, n_7 = renderable.numFloats; v < n_7; v += vertexSize, u += 2) {
 										tempPos.x = verts[v];
 										tempPos.y = verts[v + 1];
 										tempUv.x = uvs[u];
@@ -10580,7 +10596,7 @@ var spine;
 							}
 							else {
 								if (!twoColorTint) {
-									for (var v = 2, u = 0, n_7 = renderable.numFloats; v < n_7; v += vertexSize, u += 2) {
+									for (var v = 2, u = 0, n_8 = renderable.numFloats; v < n_8; v += vertexSize, u += 2) {
 										verts[v] = finalColor.r;
 										verts[v + 1] = finalColor.g;
 										verts[v + 2] = finalColor.b;
@@ -10590,7 +10606,7 @@ var spine;
 									}
 								}
 								else {
-									for (var v = 2, u = 0, n_8 = renderable.numFloats; v < n_8; v += vertexSize, u += 2) {
+									for (var v = 2, u = 0, n_9 = renderable.numFloats; v < n_9; v += vertexSize, u += 2) {
 										verts[v] = finalColor.r;
 										verts[v + 1] = finalColor.g;
 										verts[v + 2] = finalColor.b;
