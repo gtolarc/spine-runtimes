@@ -140,7 +140,7 @@
 ### Unity
 
 * **Breaking changes**
-  * **Officially supported Unity versions are 2017.1-2019.2**.
+  * **Officially supported Unity versions are 2017.1-2019.4**.
   * **Spine `.asmdef` files are again active by default**. They have previously been deactivated to `.txt` extension which is now no longer necessary.
   * **Removed PoseSkeleton() and PoseWithAnimation()** extension methods to prevent issues where animations are not mixed out. Problem was that these methods did not set AnimationState, leaving incorrect state at e.g. attachments enabled at slots when starting subsequent animations. As a replacement you can use `AnimationState.ClearTrack(0);` followed by `var entry = AnimationState.SetAnimation(0, animation, loop); entry.TrackTime = time` to achieve similar behaviour.
   * **The `Shadow alpha cutoff` shader parameter is now respecting slot-color alpha** values at all Spine shaders. A fragment's texture color alpha is multiplied with slot-color alpha before the result is tested against the `Shadow alpha cutoff` threshold.
@@ -233,6 +233,9 @@
   * Added `SkeletonGraphicCustomMaterials` component, providing functionality to override materials and textures of a `SkeletonGraphic`, similar to `SkeletonRendererCustomMaterials`. Note: overriding materials or textures per slot is not provided due to structural limitations.
   * Added **Root Motion support** for `SkeletonAnimation`, `SkeletonMecanim` and `SkeletonGraphic` via new components `SkeletonRootMotion` and `SkeletonMecanimRootMotion`. The `SkeletonAnimation` and `SkeletonGraphic` component Inspector now provides a line `Root Motion` with `Add Component` and `Remove Component` buttons to add/remove the new `SkeletonRootMotion` component to your GameObject. The `SkeletonMecanim` Inspector detects whether root motion is enabled at the `Animator` component and adds a `SkeletonMecanimRootMotion` component automatically.
   * `SkeletonMecanim` now provides an additional `Custom MixMode` parameter under `Mecanim Translator`. It is enabled by default in version 3.8 to maintain current behaviour, using the set `Mix Mode` for each Mecanim layer. When disabled, `SkeletonMecanim` will use the recommended `MixMode` according to the layer blend mode. Additional information can be found in the [Mecanim Translator section](http://esotericsoftware.com/spine-unity#Parameters-for-animation-blending-control) on the spine-unity documentation pages.
+  * Added **SkeletonGraphic Timeline support**. Added supprot for multi-track Timeline preview in the Editor outside of play mode (multi-track scrubbing). See the [Timeline-Extension-UPM-Package](http://esotericsoftware.com/spine-unity#Timeline-Extension-UPM-Package) section of the spine-unity documentation for more information.
+  * Added support for double-sided lighting at all `SkeletonLit` shaders (including URP and LWRP packages).
+  * Added frustum culling update mode parameters `Update When Invisible` (Inspector parameter) and `UpdateMode` (available via code) to all Skeleton components. This provides a simple way to disable certain updates when the `Renderer` is no longer visible (outside all cameras, culled in frustum culling). The new `UpdateMode` property allows disabling updates at a finer granularity level than disabling the whole component. Available modes are: `Nothing`, `OnlyAnimationStatus`, `EverythingExceptMesh` and `FullUpdate`.
 
 * **Changes of default values**
   * `SkeletonMecanim`'s `Layer Mix Mode` now defaults to `MixMode.MixNext` instead of `MixMode.MixAlways`.
