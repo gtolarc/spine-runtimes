@@ -32,6 +32,7 @@ using System.Collections.Generic;
 
 namespace Spine.Unity {
 	[RequireComponent(typeof(Animator))]
+	[HelpURL("http://esotericsoftware.com/spine-unity#SkeletonMecanim-Component")]
 	public class SkeletonMecanim : SkeletonRenderer, ISkeletonAnimation {
 
 		[SerializeField] protected MecanimTranslator translator;
@@ -254,7 +255,6 @@ namespace Spine.Unity {
 			private void OnClipAppliedCallback (Spine.Animation clip, AnimatorStateInfo stateInfo,
 				int layerIndex, float time, bool isLooping, float weight) {
 
-				float clipDuration = clip.duration == 0 ? 1 : clip.duration;
 				float speedFactor = stateInfo.speedMultiplier * stateInfo.speed;
 				float lastTime = time - (Time.deltaTime * speedFactor);
 				if (isLooping && clip.duration != 0) {
@@ -278,7 +278,7 @@ namespace Spine.Unity {
 						bool isAdditiveLayer = false;
 						if (layer < layerBlendModes.Length)
 							isAdditiveLayer = layerBlendModes[layer] == MixBlend.Add;
-						layerMixModes[layer] = isAdditiveLayer ? MixMode.MixNext : MixMode.AlwaysMix;
+						layerMixModes[layer] = isAdditiveLayer ? MixMode.AlwaysMix : MixMode.MixNext;
 					}
 				}
 
@@ -431,6 +431,29 @@ namespace Spine.Unity {
 						}
 					}
 				}
+			}
+
+			public KeyValuePair<Spine.Animation, float> GetActiveAnimationAndTime (int layer) {
+				if (layer >= layerClipInfos.Length)
+					return new KeyValuePair<Spine.Animation, float>(null, 0);
+
+				var layerInfos = layerClipInfos[layer];
+				bool isInterruptionActive = layerInfos.isInterruptionActive;
+				AnimationClip clip = null;
+				Spine.Animation animation = null;
+				AnimatorStateInfo stateInfo;
+				if (isInterruptionActive && layerInfos.interruptingClipInfoCount > 0) {
+					clip = layerInfos.interruptingClipInfos[0].clip;
+					stateInfo = layerInfos.interruptingStateInfo;
+				}
+				else {
+					clip = layerInfos.clipInfos[0].clip;
+					stateInfo = layerInfos.stateInfo;
+				}
+				animation = GetAnimation(clip);
+				float time = AnimationTime(stateInfo.normalizedTime, clip.length,
+										clip.isLooping, stateInfo.speed < 0);
+				return new KeyValuePair<Animation, float>(animation, time);
 			}
 
 			static float AnimationTime (float normalizedTime, float clipLength, bool loop, bool reversed) {

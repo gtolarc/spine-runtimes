@@ -53,7 +53,7 @@ namespace Spine.Unity {
 	[ExecuteInEditMode]
 	#endif
 	[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer)), DisallowMultipleComponent]
-	[HelpURL("http://esotericsoftware.com/spine-unity-rendering")]
+	[HelpURL("http://esotericsoftware.com/spine-unity#SkeletonRenderer-Component")]
 	public class SkeletonRenderer : MonoBehaviour, ISkeletonComponent, IHasSkeletonDataAsset {
 		public SkeletonDataAsset skeletonDataAsset;
 
@@ -236,7 +236,7 @@ namespace Spine.Unity {
 		/// <summary>OnRebuild is raised after the Skeleton is successfully initialized.</summary>
 		public event SkeletonRendererDelegate OnRebuild;
 
-		/// <summary>OnMeshAndMaterialsUpdated is at the end of LateUpdate after the Mesh and
+		/// <summary>OnMeshAndMaterialsUpdated is called at the end of LateUpdate after the Mesh and
 		/// all materials have been updated.</summary>
 		public event SkeletonRendererDelegate OnMeshAndMaterialsUpdated;
 
