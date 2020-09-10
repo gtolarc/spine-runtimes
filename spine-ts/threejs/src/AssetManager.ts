@@ -29,10 +29,24 @@
 
 module spine.threejs {
 	export class AssetManager extends spine.AssetManager {
+		private manager: THREE.LoadingManager;
+
 		constructor (pathPrefix: string = "") {
 			super((image: HTMLImageElement) => {
 				return new ThreeJsTexture(image);
 			}, pathPrefix);
+			this.manager = THREE.DefaultLoadingManager;
+		}
+
+		setToLoad (mark: '+' | '-') {
+			super.setToLoad(mark);
+			if (mark === '+') this.manager.itemStart('');
+		}
+
+		setLoaded (mark: '+' | 'e') {
+			super.setLoaded(mark);
+			if (mark === 'e') this.manager.itemError('');
+			this.manager.itemEnd('');
 		}
 	}
 }

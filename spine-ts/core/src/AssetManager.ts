@@ -86,18 +86,18 @@ module spine {
 			success: (path: string, binary: Uint8Array) => void = null,
 			error: (path: string, error: string) => void = null) {
 			path = this.pathPrefix + path;
-			this.toLoad++;
+			this.setToLoad('+');
 
 			this.downloadBinary(path, (data: Uint8Array): void => {
 				this.assets[path] = data;
 				if (success) success(path, data);
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 			}, (state: number, responseText: string): void => {
 				this.errors[path] = `Couldn't load binary ${path}: status ${status}, ${responseText}`;
 				if (error) error(path, `Couldn't load binary ${path}: status ${status}, ${responseText}`);
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 			});
 		}
 
@@ -105,18 +105,18 @@ module spine {
 			success: (path: string, text: string) => void = null,
 			error: (path: string, error: string) => void = null) {
 			path = this.pathPrefix + path;
-			this.toLoad++;
+			this.setToLoad('+');
 
 			this.downloadText(path, (data: string): void => {
 				this.assets[path] = data;
 				if (success) success(path, data);
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 			}, (state: number, responseText: string): void => {
 				this.errors[path] = `Couldn't load text ${path}: status ${status}, ${responseText}`;
 				if (error) error(path, `Couldn't load text ${path}: status ${status}, ${responseText}`);
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 			});
 		}
 
@@ -125,20 +125,20 @@ module spine {
 			error: (path: string, error: string) => void = null) {
 			path = this.pathPrefix + path;
 			let storagePath = path;
-			this.toLoad++;
+			this.setToLoad('+');
 			let img = new Image();
 			img.crossOrigin = "anonymous";
 			img.onload = (ev) => {
 				let texture = this.textureLoader(img);
 				this.assets[storagePath] = texture;
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 				if (success) success(path, img);
 			}
 			img.onerror = (ev) => {
 				this.errors[path] = `Couldn't load image ${path}`;
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 				if (error) error(path, `Couldn't load image ${path}`);
 			}
 			if (this.rawDataUris[path]) path = this.rawDataUris[path];
@@ -151,7 +151,7 @@ module spine {
 		) {
 			let parent = path.lastIndexOf("/") >= 0 ? path.substring(0, path.lastIndexOf("/")) : "";
 			path = this.pathPrefix + path;
-			this.toLoad++;
+			this.setToLoad('+');
 
 			this.downloadText(path, (atlasData: string): void => {
 				let pagesLoaded: any = { count: 0 };
@@ -168,8 +168,8 @@ module spine {
 					let ex = e as Error;
 					this.errors[path] = `Couldn't load texture atlas ${path}: ${ex.message}`;
 					if (error) error(path, `Couldn't load texture atlas ${path}: ${ex.message}`);
-					this.toLoad--;
-					this.loaded++;
+					this.setToLoad('-');
+					this.setLoaded('+');;
 					return;
 				}
 
@@ -186,20 +186,20 @@ module spine {
 									});
 									this.assets[path] = atlas;
 									if (success) success(path, atlas);
-									this.toLoad--;
-									this.loaded++;
+									this.setToLoad('-');
+									this.setLoaded('+');;
 								} catch (e) {
 									let ex = e as Error;
 									this.errors[path] = `Couldn't load texture atlas ${path}: ${ex.message}`;
 									if (error) error(path, `Couldn't load texture atlas ${path}: ${ex.message}`);
-									this.toLoad--;
-									this.loaded++;
+									this.setToLoad('-');
+									this.setLoaded('+');;
 								}
 							} else {
 								this.errors[path] = `Couldn't load texture atlas page ${imagePath}} of atlas ${path}`;
 								if (error) error(path, `Couldn't load texture atlas page ${imagePath} of atlas ${path}`);
-								this.toLoad--;
-								this.loaded++;
+								this.setToLoad('-');
+								this.setLoaded('+');;
 							}
 						}
 					}, (imagePath: string, errorMessage: string) => {
@@ -209,16 +209,16 @@ module spine {
 						if (pagesLoaded.count == atlasPages.length) {
 							this.errors[path] = `Couldn't load texture atlas page ${imagePath}} of atlas ${path}`;
 							if (error) error(path, `Couldn't load texture atlas page ${imagePath} of atlas ${path}`);
-							this.toLoad--;
-							this.loaded++;
+							this.setToLoad('-');
+							this.setLoaded('+');;
 						}
 					});
 				}
 			}, (state: number, responseText: string): void => {
 				this.errors[path] = `Couldn't load texture atlas ${path}: status ${status}, ${responseText}`;
 				if (error) error(path, `Couldn't load texture atlas ${path}: status ${status}, ${responseText}`);
-				this.toLoad--;
-				this.loaded++;
+				this.setToLoad('-');
+				this.setLoaded('+');;
 			});
 		}
 
@@ -250,8 +250,16 @@ module spine {
 			return this.toLoad;
 		}
 
+		setToLoad (mark: '+' | '-') {
+			mark === '+' ? this.toLoad++ : this.toLoad--;
+		}
+
 		getLoaded (): number {
 			return this.loaded;
+		}
+
+		setLoaded (mark: '+' | 'e') {
+			this.loaded++;
 		}
 
 		dispose () {
