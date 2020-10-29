@@ -260,6 +260,9 @@ namespace Spine.Unity {
 		}
 
 		protected void ApplyAnimation () {
+			if (BeforeApply != null)
+				BeforeApply(this);
+
 			state.Apply(skeleton);
 
 			if (UpdateLocal != null)
@@ -413,6 +416,7 @@ namespace Spine.Unity {
 			this.rectTransform.pivot = p;
 		}
 
+		public event UpdateBonesDelegate BeforeApply;
 		public event UpdateBonesDelegate UpdateLocal;
 		public event UpdateBonesDelegate UpdateWorld;
 		public event UpdateBonesDelegate UpdateComplete;
@@ -653,6 +657,9 @@ namespace Spine.Unity {
 				go.transform.localPosition = Vector3.zero;
 				var canvasRenderer = go.AddComponent<CanvasRenderer>();
 				canvasRenderers.Add(canvasRenderer);
+				var rawImage = go.AddComponent<RawImage>();
+				rawImage.maskable = this.maskable;
+				rawImage.raycastTarget = false;
 			}
 		}
 
