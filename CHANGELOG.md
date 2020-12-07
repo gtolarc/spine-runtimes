@@ -244,6 +244,11 @@
   * Spine Timeline Extensions: Added `Hold Previous` parameter at `SpineAnimationStateClip`.
   * Added more warning messages at incompatible SkeletonRenderer/SkeletonGraphic Component vs Material settings. They appear both as an info box in the Inspector as well as upon initialization in the Console log window. The Inspector box warnings can be disabled via `Edit - Preferences - Spine`.
   * Now providing `BeforeApply` update callbacks at all skeleton animation components (`SkeletonAnimation`, `SkeletonMecanim` and `SkeletonGraphic`).
+  * Added `BoundingBoxFollowerGraphic` component. This class is a counterpart of `BoundingBoxFollower` that can be used with `SkeletonGraphic`.
+  * Added Inspector context menu functions `SkeletonRenderer - Add all BoundingBoxFollower GameObjects` and `SkeletonGraphic - Add all BoundingBoxFollowerGraphic GameObjects` that automatically generate bounding box follower GameObjects for every `BoundingBoxAttachment` for all skins of a skeleton.
+  * `GetRemappedClone()` now provides an additional parameter `pivotShiftsMeshUVCoords` for `MeshAttachment` to prevent uv shifts at a non-central Sprite pivot. This parameter defaults to `true` to maintain previous behaviour.
+  * `SkeletonRenderer` components now provide an additional update mode `Only Event Timelines` at the `Update When Invisible` property. This mode saves additional timeline updates compared to update mode `Everything Except Mesh`.
+  * Now all URP (Universal Render Pipeline) and LWRP (Lightweight Render Pipeline) shaders support SRP (Scriptable Render Pipeline) batching. See [Unity SRPBatcher documentation pages](https://docs.unity3d.com/Manual/SRPBatcher.html) for additional information.
 
 * **Changes of default values**
   * `SkeletonMecanim`'s `Layer Mix Mode` now defaults to `MixMode.MixNext` instead of `MixMode.MixAlways`.
